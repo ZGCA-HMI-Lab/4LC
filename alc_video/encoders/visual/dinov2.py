@@ -8,12 +8,9 @@ import torch
 from latent_cache import Representation
 
 from alc_video.encoders.visual.base import (
-    CONTEXT_MAX,
-    CONTEXT_MIN,
     IMAGE_SIZE,
     PCAFeatureVisualizer,
     VisualEncoder,
-    is_keyframe_count,
 )
 
 DINOV2_ENCODER = "dinov2"
@@ -312,13 +309,13 @@ class DINOv2Encoder(VisualEncoder):
         if (
             not isinstance(features, torch.Tensor)
             or features.ndim != 4
-            or not is_keyframe_count(int(features.shape[0]))
+            or int(features.shape[0]) <= 0
             or tuple(int(value) for value in features.shape[1:]) != expected_tail
         ):
             raise ValueError(
                 "DINOv2 features must be "
                 f"[K,{expected_tail[0]},{expected_tail[1]},{expected_tail[2]}] "
-                f"with K=1 or {CONTEXT_MIN} <= K <= {CONTEXT_MAX}, "
+                f"with K >= 1, "
                 f"got {getattr(features, 'shape', None)}"
             )
         return PCAFeatureVisualizer.fit(

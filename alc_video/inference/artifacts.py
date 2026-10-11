@@ -50,6 +50,7 @@ def request_config(request: Request) -> dict[str, object]:
         )
         rollout = {name: getattr(request, name) for name in rollout}
         rollout.update(
+            num_keyframes=request.num_keyframes,
             actions=[
                 {**control_values(action.camera), "chunks": action.chunks}
                 for action in request.actions

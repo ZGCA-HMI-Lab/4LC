@@ -3,13 +3,11 @@ from __future__ import annotations
 import torch
 from latent_cache import CacheEntry, LatentCache
 
+from alc_video.conditioning.config import DEFAULT_KEYFRAMES
 from alc_video.conditioning.rgb import PixelEncoder, encode_rgb_readouts
 from alc_video.encoders.visual.depth import depth_to_rgb_frames
 from alc_video.encoders.visual.loader import offload_visual_encoders
 from alc_video.utils.logging import stage
-
-DIRECT_VIDEO_SOURCE_VIEWS = 21
-
 
 MIN_DIRECT_VIDEO_FRAMES = 12
 
@@ -66,7 +64,7 @@ def prepare_direct_video_observations(
     encoders,
     *,
     keyframes=None,
-    num_keyframes=DIRECT_VIDEO_SOURCE_VIEWS,
+    num_keyframes=DEFAULT_KEYFRAMES,
     transport="velocity",
 ):
     input_frame_count = int(frames.shape[0])

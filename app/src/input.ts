@@ -1,5 +1,18 @@
 export const OUTPUT_FRAMES = 81;
 export const DEFAULT_FPS = 16;
+export const KEYFRAME_COUNTS = [11, 21, 41, 81] as const;
+export type CacheSettings = {
+  motion_threshold: number;
+  num_keyframes: (typeof KEYFRAME_COUNTS)[number];
+};
+export const DEFAULT_CACHE_SETTINGS: CacheSettings = {
+  motion_threshold: 0.1,
+  num_keyframes: 21,
+};
+
+export function sameCacheSettings(a: CacheSettings, b: CacheSettings) {
+  return a.motion_threshold === b.motion_threshold && a.num_keyframes === b.num_keyframes;
+}
 
 export type MediaInfo = {
   media_path: string;

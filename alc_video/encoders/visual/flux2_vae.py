@@ -11,12 +11,9 @@ import torch
 from latent_cache import Representation
 
 from alc_video.encoders.visual.base import (
-    CONTEXT_MAX,
-    CONTEXT_MIN,
     IMAGE_SIZE,
     FeatureVisualization,
     VisualEncoder,
-    is_keyframe_count,
 )
 
 FLUX2_VAE_ENCODER = "flux2_vae"
@@ -346,13 +343,12 @@ class Flux2VAEEncoder(VisualEncoder):
         if (
             not isinstance(features, torch.Tensor)
             or features.ndim != 4
-            or not is_keyframe_count(int(features.shape[0]))
+            or int(features.shape[0]) <= 0
             or tuple(int(value) for value in features.shape[1:]) != expected_tail
         ):
             raise ValueError(
                 f"FLUX.2 VAE features must be [K,{expected_tail[0]},"
-                f"{expected_tail[1]},{expected_tail[2]}] with K=1 or "
-                f"{CONTEXT_MIN} <= K <= {CONTEXT_MAX}"
+                f"{expected_tail[1]},{expected_tail[2]}] with K >= 1"
             )
         return _Flux2VAEVisualizer(self)
 

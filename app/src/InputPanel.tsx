@@ -1,6 +1,8 @@
 import { useRef } from "react";
 import { Upload } from "lucide-react";
 import type { Example } from "./api";
+import CacheControls from "./CacheControls";
+import type { CacheSettings } from "./input";
 export type UploadedMedia = {
   name: string;
   url: string;
@@ -17,6 +19,9 @@ type Props = {
   preparing: boolean;
   busy: boolean;
   prepared: boolean;
+  settings: CacheSettings;
+  onSettingsChange: (settings: CacheSettings) => void;
+  changed: boolean;
 };
 
 export default function InputPanel({
@@ -29,6 +34,9 @@ export default function InputPanel({
   preparing,
   busy,
   prepared,
+  settings,
+  onSettingsChange,
+  changed,
 }: Props) {
   const uploadRef = useRef<HTMLInputElement>(null);
 
@@ -38,7 +46,11 @@ export default function InputPanel({
         <h2>Input</h2>
       </header>
       <div className="input-upload">
-        <button className="button" onClick={() => uploadRef.current?.click()}>
+        <button
+          className="button"
+          disabled={busy || preparing}
+          onClick={() => uploadRef.current?.click()}
+        >
           <Upload size={14} />
           Upload media
         </button>
@@ -58,9 +70,6 @@ export default function InputPanel({
               </span>
               <span className="input-description">
                 <strong>{uploaded.name}</strong>
-                <span>
-                  Uploaded · {uploaded.kind === "image" ? "Image" : "Video"}
-                </span>
               </span>
             </button>
           </div>
@@ -69,7 +78,7 @@ export default function InputPanel({
           <button
             className="button primary"
             onClick={onPrepare}
-            disabled={preparing || busy}
+            disabled={preparing || busy || (prepared && !changed)}
           >
             {preparing
               ? "Preparing…"
@@ -78,8 +87,18 @@ export default function InputPanel({
                 : "Prepare Cache"}
           </button>
         )}
+        <CacheControls
+          value={settings}
+          onChange={onSettingsChange}
+          disabled={!uploaded || preparing || busy}
+          image={uploaded?.kind === "image"}
+        />
       </div>
-      {examples.length > 0 && <h3 className="examples-heading">Examples</h3>}
+      {examples.length > 0 && (
+        <header className="input-heading examples-heading">
+          <h2>Examples</h2>
+        </header>
+      )}
       <div className="input-list">
         {examples.map((item) => {
           const selected = uploaded?.exampleId === item.id;
@@ -109,7 +128,6 @@ export default function InputPanel({
                 </span>
                 <span className="input-description">
                   <strong>{item.name}</strong>
-                  <span>{item.kind === "image" ? "Image" : "Video"}</span>
                 </span>
               </button>
             </div>

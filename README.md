@@ -185,7 +185,7 @@ python scripts/infer.py --example examples/nvs --output outputs/nvs.mp4
 
 **Control your own video**
 
-The full input span is sampled to **81 frames**, keeping its duration, and 21 keyframes are encoded by default. `--start` selects the beginning in seconds; `--sampling-fps` sets the spacing, so the end is `start + 80 / sampling_fps`. Without a sampling rate, the remaining video is used. `--crop X Y W H` selects source pixels; otherwise a centered crop matches the model's aspect ratio. The shared input processor then resizes to the configured resolution.
+The full input span is sampled to **81 frames**, keeping its duration. `--num-keyframes` selects **11, 21, 41 or 81** source keyframes for the Cache (default: **21**). More keyframes can reduce motion trails and improve generation quality, with higher construction cost and GPU memory use. `--start` selects the beginning in seconds; `--sampling-fps` sets the spacing, so the end is `start + 80 / sampling_fps`. Without a sampling rate, the remaining video is used. `--crop X Y W H` selects source pixels; otherwise a centered crop matches the model's aspect ratio. The shared input processor then resizes to the configured resolution.
 
 ```bash
 python scripts/infer.py --input path/to/video.mp4 \
@@ -246,7 +246,7 @@ python scripts/rollout.py --example examples/exploration \
 
 For a single action, `--chunks` sets its number of windows. **Amount is the total change over that action**, so more windows extend its duration. A multi-action case carries each final camera pose and lens into the next action. `revisit: true` appends the exact reversed camera path and doubles the window count. The initial scene scale remains fixed throughout the route.
 
-Each window samples 21 keyframes and writes up to 20 new static Cache keyframes. `--order`, `--max-entries` and `--coverage-threshold` control history reuse. `--no-use-cache` generates from each preceding final frame, with `i2v` or `geometry_i2v`. Supply one Prompt for the whole route, or repeat `--prompt` once per window. Cache `target_chunk_size` controls readout batching.
+Each window samples `--num-keyframes` source frames (11, 21, 41 or 81; default: 21). The shared first frame is omitted when writing history, leaving up to K−1 new static Cache keyframes. The output window remains 81 frames. `--order`, `--max-entries` and `--coverage-threshold` control history reuse. `--no-use-cache` generates from each preceding final frame, with `i2v` or `geometry_i2v`. Supply one Prompt for the whole route, or repeat `--prompt` once per window. Cache `target_chunk_size` controls readout batching.
 
 <details>
 <summary><b>Example directory and configuration</b></summary>
@@ -268,6 +268,9 @@ prompt: A continuous shot with natural motion.
 prepare:                         # optional; omitted values use full-span / centered-crop defaults
   start: 0
   sampling_fps: 16
+cache:                           # optional Cache construction settings
+  num_keyframes: 21               # 11, 21, 41 or 81
+  motion_threshold: 0.1           # 0–1; lower values classify more content as moving
 camera: {preset: offset, direction: left, amount: 0.3}
 time: {mode: normal}              # freeze uses at: <seconds>; reverse reads time backwards
 ```
@@ -286,7 +289,7 @@ actions:
 revisit: true
 ```
 
-`prepare.crop` accepts `[x, y, width, height]` in source pixels. Explicit CLI options override case settings; multi-action routes are edited in the case's `actions`. Unknown configuration fields fail with their field paths. The App discovers single-shot case directories and restores their settings; rollout cases remain CLI examples.
+`prepare.crop` accepts `[x, y, width, height]` in source pixels. The optional `cache` block also applies to rollout cases. Explicit CLI options override case settings: `--num-keyframes` selects the count, and `--cache` selects a Cache YAML in place of the case's motion threshold. Multi-action routes are edited in the case's `actions`. Unknown configuration fields fail with their field paths. The App discovers single-shot case directories and restores their settings; rollout cases remain CLI examples.
 
 </details>
 

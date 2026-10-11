@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
+from alc_video.conditioning.config import DEFAULT_KEYFRAMES
 from alc_video.inference.controls import CameraControl, RolloutAction, TimeControl
 from alc_video.models.config import ModelConfig, parse_model_config
 from alc_video.runtime.profiles import (
@@ -63,7 +64,7 @@ class InferenceRequest:
     camera: CameraControl = field(default_factory=CameraControl)
     time: TimeControl = field(default_factory=TimeControl)
     mode: Literal["control", "i2v", "geometry_i2v"] = "control"
-    num_keyframes: int = 21
+    num_keyframes: int = DEFAULT_KEYFRAMES
     keyframes: tuple[int, ...] | None = None
     transport: Literal["velocity", "identity"] = "velocity"
     drop_source_frames: tuple[int, ...] = ()
@@ -80,6 +81,7 @@ class RolloutRequest:
     output: Path = Path("outputs/rollout/generated.mp4")
     mode: Literal["i2v", "geometry_i2v"] = "geometry_i2v"
     chunk_size: int = 81
+    num_keyframes: int = DEFAULT_KEYFRAMES
     use_cache: bool = True
     order: Literal["earliest_first", "latest_first"] = "earliest_first"
     max_entries: int = 8

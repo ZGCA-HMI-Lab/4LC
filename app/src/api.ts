@@ -1,7 +1,7 @@
 import { Client, handle_file } from "@gradio/client";
 import { decodeScene } from "./scene.ts";
 import type { SceneData, SceneDescriptor } from "./scene.ts";
-import type { MediaInfo, InputSettings } from "./input.ts";
+import type { MediaInfo, InputSettings, CacheSettings } from "./input.ts";
 import type { Motion } from "./camera.ts";
 
 export type Example = {
@@ -13,6 +13,7 @@ export type Example = {
   profile: string;
   mode: "control" | "geometry_i2v";
   prepare: Partial<Omit<InputSettings, "media_path">>;
+  cache: CacheSettings;
   camera: Motion;
   time: { mode: "normal" | "freeze" | "reverse"; at: number };
 };
@@ -25,6 +26,7 @@ export type CacheSummary = {
   source_duration: number;
   fps: number;
   keyframes: number;
+  cache: CacheSettings;
   representations: string[];
   profiles: string[];
   timings: Record<string, number>;
@@ -35,6 +37,8 @@ export type CacheSummary = {
 export type PreparedCache = CacheSummary & { data: SceneData };
 
 const STAGES: Record<string, string> = {
+  "cache.prepare": "Preparing Cache construction",
+  "cache.reclassify": "Updating motion classification",
   "input.decode": "Reading input",
   "input.encode_video": "Preparing input preview",
   "visualize.mask": "Visualizing coverage and motion",
@@ -106,12 +110,13 @@ export async function inspectInput(
 
 export async function prepareCache(
   settings: InputSettings,
+  cacheSettings: CacheSettings,
   onProgress: (stage: string) => void,
   signal: AbortSignal,
 ): Promise<PreparedCache> {
   const result = await submit<CacheSummary>(
     "/build_cache",
-    [settings],
+    [{ ...settings, cache: cacheSettings }],
     onProgress,
     signal,
   );

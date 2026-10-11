@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 
 import torch
 
+from alc_video.conditioning.config import validate_keyframe_count
 from alc_video.conditioning.video import (
     sample_keyframe_indices,
     validate_drop_source_frames,
@@ -16,7 +17,6 @@ from alc_video.inference.media import (
     prepare_input,
 )
 from alc_video.inference.sampling import validate_sampling_options
-from alc_video.models.video_model.temporal import wan_vae_latent_frame_count
 from alc_video.utils.errors import input_errors
 from alc_video.utils.logging import stage
 
@@ -41,6 +41,7 @@ def read_source(source: SourceInput, image_size: tuple[int, int]) -> PreparedInp
 
 def prepare_inference_inputs(request: InferenceRequest) -> PreparedInput:
     with input_errors():
+        validate_keyframe_count(request.num_keyframes)
         sampling = request.generation.sampling
         validate_sampling_options(sampling.steps, sampling.control_scales)
         image = request.source.type == "image"
@@ -74,11 +75,13 @@ def prepare_inference_inputs(request: InferenceRequest) -> PreparedInput:
 
 def prepare_rollout_inputs(request: RolloutRequest) -> RolloutInputs:
     with input_errors():
+        validate_keyframe_count(request.num_keyframes)
         if request.source.type != "image":
             raise ValueError("Rollout starts from a single image")
         if request.chunk_size != OUTPUT_FRAMES:
             raise ValueError(
-                "Rollout uses 81-frame windows: 21 sampled keyframes and up to 20 new Cache keyframes"
+                "Rollout uses 81-frame windows; --num-keyframes selects 11, 21, 41 or 81 "
+                "samples per window. The shared first frame is omitted when writing history."
             )
         if not request.actions:
             raise ValueError("Rollout needs at least one camera action")
@@ -110,9 +113,7 @@ def prepare_rollout_inputs(request: RolloutRequest) -> RolloutInputs:
             )
         with stage("input.decode", path=request.source.path):
             prepared = read_source(request.source, request.generation.cache.image_size)
-        indices = sample_keyframe_indices(
-            OUTPUT_FRAMES, wan_vae_latent_frame_count(OUTPUT_FRAMES)
-        )
+        indices = sample_keyframe_indices(OUTPUT_FRAMES, request.num_keyframes)
         return RolloutInputs(
             prepared.frames[0].permute(1, 2, 0),
             prepared.settings.sampling_fps,

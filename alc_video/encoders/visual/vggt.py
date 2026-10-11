@@ -8,10 +8,7 @@ import torch
 from latent_cache import Representation
 
 from alc_video.encoders.visual.base import (
-    CONTEXT_MAX,
-    CONTEXT_MIN,
     VisualEncoder,
-    is_keyframe_count,
 )
 from alc_video.encoders.visual.visualization import PCAFeatureVisualizer
 
@@ -248,13 +245,12 @@ class VGGTEncoder(VisualEncoder):
         if (
             not isinstance(source_latents, torch.Tensor)
             or source_latents.ndim != 4
-            or not is_keyframe_count(int(source_latents.shape[0]))
+            or int(source_latents.shape[0]) <= 0
             or tuple(int(size) for size in source_latents.shape[1:]) != expected
         ):
             raise ValueError(
                 f"VGGT source latents must be [K,{expected[0]},{expected[1]},"
-                f"{expected[2]}] with K=1 or {CONTEXT_MIN} <= K <= "
-                f"{CONTEXT_MAX}, "
+                f"{expected[2]}] with K >= 1, "
                 f"got {getattr(source_latents, 'shape', None)}"
             )
         return PCAFeatureVisualizer.fit(

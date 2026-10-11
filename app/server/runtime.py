@@ -9,7 +9,9 @@ from typing import Literal
 import torch
 from latent_cache import CacheEntry, LatentCache
 
+from alc_video.conditioning.config import CacheConstructionSettings
 from alc_video.conditioning.first_frame import reconstruct_image_entry
+from alc_video.conditioning.geometry import reclassify_entry_motion
 from alc_video.conditioning.video import (
     construct_video_entry,
     prepare_direct_video_observations,
@@ -281,11 +283,29 @@ class CacheRuntime:
         timings[name] = perf_counter() - start
 
     @torch.inference_mode()
-    def construct(self, prepared: PreparedInput, progress: Progress) -> BuiltCache:
+    def reclassify(
+        self, built: BuiltCache, threshold: float, progress: Progress
+    ) -> BuiltCache:
+        timings: dict[str, float] = {}
+        with self.measure("cache.reclassify", timings, progress):
+            entry = reclassify_entry_motion(
+                built.entry,
+                replace(self.config.cache, motion_threshold=threshold),
+                self.device,
+            )
+        return replace(built, entry=entry, timings=timings)
+
+    @torch.inference_mode()
+    def construct(
+        self,
+        prepared: PreparedInput,
+        settings: CacheConstructionSettings,
+        progress: Progress,
+    ) -> BuiltCache:
         if self.mirror is None:
             raise RuntimeError("CacheRuntime must be started before construction")
         cache = LatentCache(
-            self.config.cache,
+            replace(self.config.cache, motion_threshold=settings.motion_threshold),
             {
                 name: (encoder, "depth" if name == "depth" else "rgb")
                 for name, encoder in self.encoders.items()
@@ -299,6 +319,12 @@ class CacheRuntime:
                 release_resource(offload_visual_encoders, self.encoders)
             )
             resources.callback(cache.clear)
+            with self.measure("cache.prepare", timings, progress):
+                for network in self.networks.values():
+                    network.to("cpu")
+                self.components.text.offload()
+                self.components.codec.offload()
+                offload_visual_encoders(self.encoders)
             if prepared.kind == "video":
                 with self.measure("geometry.reconstruct", timings, progress):
                     observation = prepare_direct_video_observations(
@@ -306,6 +332,7 @@ class CacheRuntime:
                         fps,
                         self.mirror,
                         self.encoders,
+                        num_keyframes=settings.num_keyframes,
                     )
                 with self.measure("cache.construct", timings, progress):
                     entry = construct_video_entry(observation, cache, self.device)

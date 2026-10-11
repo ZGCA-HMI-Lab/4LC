@@ -74,8 +74,8 @@ def main() -> None:
         [args.model]
         if args.model
         else [
-            root / "configs/models/flux-vjepa.yaml",
             root / "configs/models/flux-all.yaml",
+            root / "configs/models/flux-vjepa.yaml",
         ]
     )
     profiles = {

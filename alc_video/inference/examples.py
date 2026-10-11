@@ -6,6 +6,7 @@ from dataclasses import dataclass, fields
 from pathlib import Path
 from typing import Any, Literal
 
+from alc_video.conditioning.config import CacheConstructionSettings
 from alc_video.inference.config import SourceInput
 from alc_video.inference.controls import CameraControl, RolloutAction, TimeControl
 from alc_video.runtime.profiles import DEFAULT_MODEL
@@ -60,6 +61,7 @@ class ExampleCase:
     time: TimeControl
     actions: tuple[RolloutAction, ...] = ()
     revisit: bool = False
+    cache: CacheConstructionSettings | None = None
 
     @property
     def mode(self) -> str:
@@ -74,7 +76,7 @@ def load_example(path: str | Path) -> ExampleCase:
     task = raw.get("task")
     if task not in TASKS:
         raise ValueError(f"task={task!r}; choose one of {TASKS}")
-    allowed = {"task", "input", "model", "prompt", "prepare"}
+    allowed = {"task", "input", "model", "prompt", "prepare", "cache"}
     allowed |= {"actions", "revisit"} if task == "rollout" else {"camera", "time"}
     reject_unknown_fields(raw, allowed)
     if not isinstance(raw.get("input"), str):
@@ -128,7 +130,16 @@ def load_example(path: str | Path) -> ExampleCase:
             for i, value in enumerate(values)
         )
     return ExampleCase(
-        path, task, source, model, prompts, camera, time, actions, revisit
+        path,
+        task,
+        source,
+        model,
+        prompts,
+        camera,
+        time,
+        actions,
+        revisit,
+        CacheConstructionSettings.parse(raw["cache"]) if "cache" in raw else None,
     )
 
 

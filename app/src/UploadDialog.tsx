@@ -11,13 +11,16 @@ import {
   OUTPUT_FRAMES,
 } from "./input";
 import type { Crop, CropHandle, InputSettings, MediaInfo } from "./input";
+import type { CacheSettings } from "./input";
+import CacheControls from "./CacheControls";
 
 type Props = {
   file: File;
   kind: "image" | "video";
   example?: import("./api.ts").Example;
   onClose: () => void;
-  onConfirm: (settings: InputSettings) => void;
+  cacheSettings: CacheSettings;
+  onConfirm: (settings: InputSettings, cacheSettings: CacheSettings) => void;
 };
 
 export default function UploadDialog({
@@ -26,6 +29,7 @@ export default function UploadDialog({
   example,
   onClose,
   onConfirm,
+  cacheSettings,
 }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const video = useRef<HTMLVideoElement>(null);
@@ -47,6 +51,7 @@ export default function UploadDialog({
   const [error, setError] = useState<string | null>(null);
   const [start, setStart] = useState(0);
   const [fps, setFps] = useState(DEFAULT_FPS);
+  const [cache, setCache] = useState<CacheSettings>({ ...(example?.cache ?? cacheSettings) });
   useEffect(() => {
     dialog.current!.showModal();
     const mediaUrl = URL.createObjectURL(file);
@@ -321,6 +326,11 @@ export default function UploadDialog({
             </div>
           )
         )}
+        {info && !error && (
+          <div className="upload-cache-settings">
+            <CacheControls value={cache} onChange={setCache} image={kind === "image"} />
+          </div>
+        )}
       </div>
       {(error || problem) && (
         <p className="upload-error" role="alert">
@@ -341,7 +351,7 @@ export default function UploadDialog({
               start,
               sampling_fps: fps,
               crop: crop!,
-            })
+            }, cache)
           }
         >
           Prepare Cache

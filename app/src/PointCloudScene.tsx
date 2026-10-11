@@ -202,7 +202,7 @@ export default function PointCloudScene(props: Props) {
       ref={canvas}
       className="scene-canvas interactive"
       role="img"
-      aria-label="Real 4D Cache point cloud"
+      aria-label="4D Scene point cloud"
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId);
         drag.current = {

@@ -8,10 +8,7 @@ import torch
 from latent_cache import Representation
 
 from alc_video.encoders.visual.base import (
-    CONTEXT_MAX,
-    CONTEXT_MIN,
     VisualEncoder,
-    is_keyframe_count,
 )
 from alc_video.encoders.visual.visualization import PCAFeatureVisualizer
 
@@ -243,13 +240,13 @@ class ViTEncoder(VisualEncoder):
         if (
             not isinstance(source_latents, torch.Tensor)
             or source_latents.ndim != 4
-            or not is_keyframe_count(int(source_latents.shape[0]))
+            or int(source_latents.shape[0]) <= 0
             or tuple(int(value) for value in source_latents.shape[1:]) != expected_tail
         ):
             raise ValueError(
                 "ViT source latents must be "
                 f"[K,{expected_tail[0]},{expected_tail[1]},{expected_tail[2]}] "
-                f"with K=1 or {CONTEXT_MIN} <= K <= {CONTEXT_MAX}, "
+                f"with K >= 1, "
                 f"got {getattr(source_latents, 'shape', None)}"
             )
         return PCAFeatureVisualizer.fit(

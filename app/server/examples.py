@@ -2,6 +2,7 @@ from dataclasses import asdict
 from pathlib import Path
 from urllib.parse import quote
 
+from alc_video.conditioning.config import CacheConstructionSettings
 from alc_video.inference.examples import discover_cases
 
 
@@ -27,6 +28,7 @@ def discover_examples(directory: Path) -> list[dict]:
                 "profile": case.model.stem,
                 "mode": case.mode,
                 "prepare": prepare,
+                "cache": asdict(case.cache or CacheConstructionSettings()),
                 "camera": asdict(case.camera),
                 "time": asdict(case.time),
             }

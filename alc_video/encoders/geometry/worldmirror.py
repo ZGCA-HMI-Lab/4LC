@@ -15,10 +15,6 @@ from alc_video.encoders.geometry.types import (
     WorldMirrorPairState,
     WorldMirrorSourceState,
 )
-from alc_video.encoders.visual.base import (
-    CONTEXT_MAX,
-    CONTEXT_MIN,
-)
 
 
 def to_world_normalized_velocity(
@@ -214,9 +210,9 @@ class WorldMirrorGeometryEncoder:
         if source_indices.dtype != torch.int64 or source_indices.ndim != 1:
             raise ValueError("source_indices must be an int64 vector")
         source_count = int(source_indices.numel())
-        if not CONTEXT_MIN <= source_count <= CONTEXT_MAX:
+        if not 2 <= source_count <= count:
             raise ValueError(
-                f"source_indices count must be in [{CONTEXT_MIN}, {CONTEXT_MAX}]"
+                f"source_indices count must be in [2, {count}], got {source_count}"
             )
         if not bool((source_indices[1:] > source_indices[:-1]).all()):
             raise ValueError("source_indices must be strictly increasing")

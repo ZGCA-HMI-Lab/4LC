@@ -1,9 +1,55 @@
 from __future__ import annotations
 
+from dataclasses import fields, replace
+
 import torch
+from latent_cache import CacheEntry, LatentCacheConfig
 from latent_cache.geometry.spatial import unproject_depth
-from latent_cache.propagation.motion import select_motion
-from latent_cache.propagation.transport import VelocityTransportBackend
+from latent_cache.propagation.motion import MotionSelection, select_motion
+from latent_cache.propagation.transport import (
+    IdentityTransportBackend,
+    VelocityTransportBackend,
+)
+
+
+@torch.no_grad()
+def reclassify_entry_motion(
+    entry: CacheEntry, config: LatentCacheConfig, device: torch.device
+) -> CacheEntry:
+    """Reclassify retained geometry; keep all encoded representations unchanged."""
+    geometry = {
+        name: getattr(entry, name).to(device)
+        for name in ("positions", "valid", "depth", "times", "fps", "intrinsics", "c2w")
+    }
+    transport = (
+        IdentityTransportBackend()
+        if entry.velocity is None
+        else VelocityTransportBackend(*(value.to(device) for value in entry.velocity))
+    )
+    motion = select_motion(
+        geometry["positions"],
+        geometry["valid"],
+        geometry["depth"],
+        geometry["times"],
+        geometry["fps"],
+        transport_backend=transport,
+        source_intr=geometry["intrinsics"],
+        source_c2w=geometry["c2w"],
+        image_size=config.image_size,
+        threshold=config.motion_threshold,
+        motion_mask_dilation_radius=config.motion_mask_dilation,
+        temporal_motion_propagation=config.temporal_motion_propagation,
+        temporal_motion_depth_tolerance=config.temporal_motion_depth_tolerance,
+    )
+    return replace(
+        entry,
+        motion=MotionSelection(
+            **{
+                field.name: getattr(motion, field.name).to(entry.positions.device)
+                for field in fields(motion)
+            }
+        ),
+    )
 
 
 @torch.no_grad()

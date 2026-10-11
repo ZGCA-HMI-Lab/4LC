@@ -10,10 +10,7 @@ import torch.nn.functional as F
 from latent_cache import Representation
 
 from alc_video.encoders.visual.base import (
-    CONTEXT_MAX,
-    CONTEXT_MIN,
     VisualEncoder,
-    is_keyframe_count,
 )
 from alc_video.encoders.visual.visualization import FeatureVisualization
 
@@ -234,13 +231,13 @@ class DepthAnythingV2Encoder(VisualEncoder):
         if (
             not isinstance(source_latents, torch.Tensor)
             or source_latents.ndim != 4
-            or not is_keyframe_count(int(source_latents.shape[0]))
+            or int(source_latents.shape[0]) <= 0
             or tuple(int(size) for size in source_latents.shape[1:]) != expected
         ):
             raise ValueError(
                 "Depth Anything V2 source latents must be "
                 f"[K,{expected[0]},{expected[1]},{expected[2]}] with "
-                f"K=1 or {CONTEXT_MIN} <= K <= {CONTEXT_MAX}, got "
+                f"K >= 1, got "
                 f"{getattr(source_latents, 'shape', None)}"
             )
         values = source_latents.float()

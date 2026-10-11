@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import {
+  BookOpen,
   CircleAlert,
   Expand,
   Layers3,
@@ -15,7 +16,8 @@ import VideoDialog, { MaskLegend } from "./VideoDialog";
 import ExportMenu from "./ExportMenu";
 import InputPanel from "./InputPanel";
 import UploadDialog from "./UploadDialog";
-import type { InputSettings } from "./input";
+import { DEFAULT_CACHE_SETTINGS, sameCacheSettings } from "./input";
+import type { CacheSettings, InputSettings } from "./input";
 import type { UploadedMedia } from "./InputPanel";
 import UsageGuide from "./UsageGuide";
 import TrajectoryView from "./TrajectoryView";
@@ -84,7 +86,7 @@ export default function App() {
   const [timePreset, setTimePreset] = useState<TimePreset>("forward");
   const [freezeTime, setFreezeTime] = useState(0.3);
   const [imageMode, setImageMode] = useState("geometry_i2v");
-  const [profile, setProfile] = useState("flux-vjepa");
+  const [profile, setProfile] = useState("flux-all");
   const [prompt, setPrompt] = useState("");
   const [guideOpen, setGuideOpen] = useState(false);
   const guideTrigger = useRef<HTMLButtonElement>(null);
@@ -121,6 +123,7 @@ export default function App() {
   const [uploaded, setUploaded] = useState<UploadedMedia | null>(null);
   const [buildStage, setBuildStage] = useState<string | null>(null);
   const [builtCache, setBuiltCache] = useState<PreparedCache | null>(null);
+  const [cacheSettings, setCacheSettings] = useState<CacheSettings>({ ...DEFAULT_CACHE_SETTINGS });
   const [pendingUpload, setPendingUpload] = useState<{
     file: File;
     kind: "image" | "video";
@@ -348,7 +351,7 @@ export default function App() {
     }
     setPendingUpload({ file, kind });
   }
-  function confirmUpload(settings: InputSettings) {
+  function confirmUpload(settings: InputSettings, cache: CacheSettings) {
     if (!pendingUpload) return;
     const example = pendingUpload.example;
     buildRequest.current?.abort();
@@ -367,9 +370,10 @@ export default function App() {
     setRealPreview(null);
     setBuildStage(null);
     setBuiltCache(null);
+    setCacheSettings(cache);
     setPrompt(pendingUpload.example?.prompt ?? "");
     setUploaded({
-      name: pendingUpload.file.name,
+      name: example?.name ?? pendingUpload.file.name,
       url: URL.createObjectURL(pendingUpload.file),
       kind: pendingUpload.kind,
       exampleId: pendingUpload.example?.id,
@@ -379,9 +383,9 @@ export default function App() {
     setInputError(null);
     resetPreview(INITIAL_CAMERA, pendingUpload.kind === "image");
     setPendingUpload(null);
-    void buildCache(settings, example);
+    void buildCache(settings, example, cache);
   }
-  async function buildCache(settings = inputSettings, example?: Example) {
+  async function buildCache(settings = inputSettings, example?: Example, cache = cacheSettings, resetShot = true) {
     if (!settings) return;
     const controller = new AbortController();
     buildRequest.current = controller;
@@ -390,6 +394,7 @@ export default function App() {
     try {
       const result = await prepareCache(
         settings,
+        cache,
         (stage) => {
           if (!controller.signal.aborted) setBuildStage(stage);
         },
@@ -406,7 +411,7 @@ export default function App() {
         setVideoView(null);
         setBuiltCache(result);
         if (!result.profiles.includes(profile)) setProfile(result.profiles[0]);
-        resetPreview(
+        if (resetShot) resetPreview(
           cameraFromCV(
             result.camera.intrinsics[0],
             result.camera.c2w[0],
@@ -596,6 +601,7 @@ export default function App() {
             aria-controls="usage-guide"
             onClick={() => setGuideOpen(!guideOpen)}
           >
+            <BookOpen size={18} aria-hidden="true" />
             Usage guide
           </button>
           <a
@@ -616,7 +622,7 @@ export default function App() {
           onExample={(example) => void chooseExample(example)}
           onUpload={uploadMedia}
           onPreview={() => setExpanded("source")}
-          onPrepare={() => void buildCache(inputSettings, examples.find((item) => item.id === uploaded?.exampleId))}
+          onPrepare={() => void buildCache(inputSettings, undefined, cacheSettings, false)}
           preparing={buildStage !== null}
           busy={
             conditionStage !== null ||
@@ -624,6 +630,9 @@ export default function App() {
             comparisonStage !== null
           }
           prepared={builtCache !== null}
+          settings={cacheSettings}
+          onSettingsChange={setCacheSettings}
+          changed={builtCache !== null && !image && !sameCacheSettings(cacheSettings, builtCache.cache)}
         />
         <main id="workspace">
           {inputError && (
@@ -633,9 +642,9 @@ export default function App() {
           )}
           <div className="workspace-grid">
             <div className="pane scene-column">
-              <section className="scene-pane" aria-label="4D Cache scene">
+              <section className="scene-pane" aria-label="4D Scene">
                 <header className="pane-heading">
-                  <h1>4D Latent Cache</h1>
+                  <h1>4D Scene</h1>
                   <button
                     className="icon-button"
                     aria-label="Expand scene"
@@ -848,7 +857,7 @@ export default function App() {
                     setProfile(event.target.value);
                   }}
                 >
-                  {(builtCache?.profiles ?? ["flux-vjepa", "flux-all"]).map(
+                  {(builtCache?.profiles ?? ["flux-all", "flux-vjepa"]).map(
                     (name) => (
                       <option key={name} value={name}>
                         {name === "flux-vjepa"
@@ -943,7 +952,7 @@ export default function App() {
                     </span>
                   )}
                   <button
-                    className="button"
+                    className="button primary"
                     disabled={
                       !ready ||
                       conditionsReady ||
@@ -1076,6 +1085,7 @@ export default function App() {
           file={pendingUpload.file}
           kind={pendingUpload.kind}
           example={pendingUpload.example}
+          cacheSettings={cacheSettings}
           onClose={() => setPendingUpload(null)}
           onConfirm={confirmUpload}
         />
@@ -1123,7 +1133,7 @@ export default function App() {
           ref={expandedDialog}
           className="expanded-pane"
           onClose={() => setExpanded(null)}
-          aria-label={expanded === "source" ? "Input preview" : "4D scene"}
+          aria-label={expanded === "source" ? "Input preview" : "4D Scene"}
           onClick={(event) => {
             if (event.target !== event.currentTarget) return;
             const bounds = event.currentTarget.getBoundingClientRect();
@@ -1137,7 +1147,7 @@ export default function App() {
           }}
         >
           <header className="pane-heading">
-            <h2>{expanded === "source" ? uploaded?.name : "4D scene"}</h2>
+            <h2>{expanded === "source" ? uploaded?.name : "4D Scene"}</h2>
             <button
               className="icon-button"
               aria-label="Close expanded view"

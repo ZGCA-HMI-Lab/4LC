@@ -19,6 +19,16 @@ export default function UsageGuide({ onClose }: { onClose: () => void }) {
         </button>
       </header>
       <div className="guide-content">
+        <p className="guide-intro">
+          This app demonstrates the 4LC workflow, from an input image or video
+          to video generation.
+        </p>
+        <p>
+          <strong>Construction</strong> builds a reusable <strong>4D Latent Cache</strong>.{" "}
+          <strong>Readout</strong> retrieves its visual representations at your
+          chosen viewpoints and times. <strong>Conditioning</strong> uses them to
+          guide the generated video.
+        </p>
         <section aria-labelledby="guide-input">
           <h3 id="guide-input">
             <Upload size={18} aria-hidden="true" />
@@ -35,6 +45,59 @@ export default function UsageGuide({ onClose }: { onClose: () => void }) {
             and <strong>Sampling FPS</strong>; check <strong>Selected range</strong>{" "}
             before confirming. The selected time span is kept through generation.
           </p>
+          <dl className="guide-definitions">
+            <div>
+              <dt>Motion threshold</dt>
+              <dd>
+                Controls how the Cache separates moving and static content.
+                Lower values mark more regions as moving; higher values keep more
+                regions static. Range <strong>0–1</strong>, default <strong>0.1</strong>.
+                At <strong>0</strong>, any nonzero estimated motion is treated as moving.
+              </dd>
+            </div>
+            <div>
+              <dt>Keyframes</dt>
+              <dd>
+                The source frames used to construct a video Cache. Choose
+                <strong> 11, 21, 41 or 81</strong>. <strong>21 is recommended and
+                selected by default.</strong> Choosing 41 or 81 may reduce motion
+                trails and improve visual quality; gains in camera or time control
+                may be small. More keyframes increase processing time, GPU memory
+                use and scene download size. A single image uses one keyframe.
+                <table className="guide-cost-table">
+                  <caption>Estimated scene download cost · 21 keyframes = 1×</caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Keyframes</th>
+                      <th scope="col">Download size</th>
+                      <th scope="col">Download time</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr><th scope="row">11</th><td>~0.5×</td><td>~0.5×</td></tr>
+                    <tr className="recommended"><th scope="row">21</th><td>1×</td><td>1×</td></tr>
+                    <tr><th scope="row">41</th><td>~2×</td><td>~2×</td></tr>
+                    <tr><th scope="row">81</th><td>~4×</td><td>~4×</td></tr>
+                  </tbody>
+                </table>
+                <p>
+                  At 560 × 336 and the default motion threshold, allow roughly
+                  <strong> 160 MB for 21</strong> or <strong>610 MB for 81</strong>{" "}
+                  keyframes, based on one measured 81-keyframe scene. Actual size
+                  varies with scene content. Time estimates assume the same
+                  connection and cover downloading the scene only.
+                </p>
+              </dd>
+            </div>
+          </dl>
+          <p>
+            Both settings are also below the current input.
+            Change them, then select <strong>Rebuild Cache</strong> to apply.
+            Changing only the threshold reuses the existing geometry and visual
+            representations; changing the keyframe count rebuilds them.
+            Camera and time controls below the scene set up the shot using the
+            existing Cache.
+          </p>
         </section>
 
         <section aria-labelledby="guide-controls">
@@ -43,7 +106,7 @@ export default function UsageGuide({ onClose }: { onClose: () => void }) {
             <span>2. Set up your shot</span>
           </h3>
           <p>For images, choose a <strong>Conditioning</strong> mode:</p>
-          <dl className="guide-modes">
+          <dl className="guide-definitions">
             <div>
               <dt>First-frame only</dt>
               <dd>
@@ -65,7 +128,7 @@ export default function UsageGuide({ onClose }: { onClose: () => void }) {
               </dd>
             </div>
           </dl>
-          <dl className="guide-controls">
+          <dl className="guide-definitions">
             <div>
               <dt>Camera</dt>
               <dd>
@@ -89,8 +152,9 @@ export default function UsageGuide({ onClose }: { onClose: () => void }) {
             <span><kbd>⌘</kbd> + scroll on Mac · <kbd>Ctrl</kbd> + scroll on Windows</span>
           </div>
           <p className="guide-caption">
-            The colored points show scene shape and motion. The Cache also stores
-            the other visual representations used for generation.
+            <strong>4D Scene</strong> shows the Cache’s geometry and motion as an
+            RGB-colored point cloud; the Cache also binds multiple visual
+            representations for generation.
           </p>
         </section>
 

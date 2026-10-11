@@ -8,12 +8,9 @@ import torch
 from latent_cache import Representation
 
 from alc_video.encoders.visual.base import (
-    CONTEXT_MAX,
-    CONTEXT_MIN,
     IMAGE_SIZE,
     PCAFeatureVisualizer,
     VisualEncoder,
-    is_keyframe_count,
 )
 
 VJEPA2_ENCODER = "vjepa2"
@@ -220,13 +217,12 @@ class VJEPA2Encoder(VisualEncoder):
         if (
             not isinstance(features, torch.Tensor)
             or features.ndim != 4
-            or not is_keyframe_count(int(features.shape[0]))
+            or int(features.shape[0]) <= 0
             or tuple(int(size) for size in features.shape[1:]) != expected
         ):
             raise ValueError(
                 f"V-JEPA2 features must be [K,{expected[0]},"
-                f"{expected[1]},{expected[2]}] with K=1 or "
-                f"{CONTEXT_MIN} <= K <= {CONTEXT_MAX}, got "
+                f"{expected[1]},{expected[2]}] with K >= 1, got "
                 f"{getattr(features, 'shape', None)}"
             )
         return PCAFeatureVisualizer.fit(

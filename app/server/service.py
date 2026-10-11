@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field, replace
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from time import perf_counter
 
@@ -8,7 +8,8 @@ import gradio as gr
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.staticfiles import StaticFiles
 
-from alc_video.inference.media import inspect_media
+from alc_video.conditioning.config import CacheConstructionSettings
+from alc_video.inference.media import InputSettings, inspect_media
 from server.comparison import Comparison, compose_comparison
 from server.conditioning import Shot
 from server.examples import discover_examples
@@ -56,6 +57,9 @@ class Session:
     cache: BuiltCache
     scene: SceneAsset
     input_video: bytes
+    construction: CacheConstructionSettings
+    media_path: str
+    input_settings: InputSettings
     pca: dict = field(default_factory=dict)
     preview: Preview | None = None
     conditions: ConditionResult | None = None
@@ -64,6 +68,7 @@ class Session:
     def summary(self, session_id: str):
         return {
             **self.cache.summary(),
+            "cache": asdict(self.construction),
             "scene": {**self.scene.metadata, "url": f"api/scene/{session_id}"},
         }
 
@@ -74,11 +79,22 @@ def create_app(runtime: CacheRuntime, *, gpu=None) -> FastAPI:
     def release(session_id):
         sessions.pop(session_id, None)
 
-    def construct(prepared, progress):
-        return runtime.construct(prepared, lambda stage: progress(None, desc=stage))
+    def construct(prepared, settings, progress):
+        return runtime.construct(
+            prepared, settings, lambda stage: progress(None, desc=stage)
+        )
 
     compute = (
         gpu(duration=60, size="xlarge")(construct) if gpu is not None else construct
+    )
+
+    def reclassify(built, threshold, progress):
+        return runtime.reclassify(
+            built, threshold, lambda stage: progress(None, desc=stage)
+        )
+
+    update_motion = (
+        gpu(duration=30, size="xlarge")(reclassify) if gpu is not None else reclassify
     )
 
     def render(built, shot, pca, progress, existing):
@@ -113,28 +129,72 @@ def create_app(runtime: CacheRuntime, *, gpu=None) -> FastAPI:
         return info.summary(), {**inspected, info.path: info}
 
     def build_cache(settings, inspected, request: gr.Request, progress=tracker):
+        construction = CacheConstructionSettings.parse(settings["cache"])
         if settings["media_path"] not in inspected:
             raise gr.Error("Upload an image or video before preparing the Cache.")
         start = perf_counter()
-        progress(None, desc="input.decode")
-        prepared = runtime.prepare(inspected[settings["media_path"]], settings)
-        result = compute(prepared, progress)
+        session_id = request.session_hash
+        previous = sessions.get(session_id)
+        media = inspected[settings["media_path"]]
+        input_values = {
+            name: value for name, value in settings.items() if name != "cache"
+        }
+        input_settings = InputSettings.parse(
+            input_values, media, runtime.config.cache.image_size
+        )
+        same_input = (
+            previous is not None
+            and previous.media_path == media.path
+            and previous.cache.source_type == media.kind
+            and previous.input_settings == input_settings
+        )
+        reusing_features = (
+            same_input
+            and previous.construction.num_keyframes == construction.num_keyframes
+        )
+        if reusing_features and previous.construction == construction:
+            return {
+                **previous.summary(session_id),
+                "profiles": list(runtime.profiles),
+            }, session_id
+        if reusing_features:
+            result = update_motion(
+                previous.cache, construction.motion_threshold, progress
+            )
+        else:
+            progress(None, desc="input.decode")
+            prepared = runtime.prepare(media, input_values)
+            result = compute(prepared, construction, progress)
         progress(None, desc="scene.pack")
         packed_at = perf_counter()
         scene = export_scene(result.entry, result.colors)
         result.timings["scene.pack"] = perf_counter() - packed_at
-        session_id = request.session_hash
-        progress(None, desc="input.encode_video")
-        input_start = perf_counter()
-        input_frames = (
-            prepared.frames.permute(0, 2, 3, 1).mul(255).round().clamp(0, 255).byte()
-        )
-        if prepared.kind == "image":
-            input_frames = input_frames.expand(result.frame_count, -1, -1, -1)
-        input_video = encode_video(input_frames, result.fps)
-        result.timings["input.encode_video"] = perf_counter() - input_start
+        if same_input:
+            input_video = previous.input_video
+        else:
+            progress(None, desc="input.encode_video")
+            input_start = perf_counter()
+            input_frames = (
+                prepared.frames.permute(0, 2, 3, 1)
+                .mul(255)
+                .round()
+                .clamp(0, 255)
+                .byte()
+            )
+            if prepared.kind == "image":
+                input_frames = input_frames.expand(result.frame_count, -1, -1, -1)
+            input_video = encode_video(input_frames, result.fps)
+            result.timings["input.encode_video"] = perf_counter() - input_start
         result.timings["processing.total"] = perf_counter() - start
-        session = Session(result, scene, input_video)
+        session = Session(
+            result,
+            scene,
+            input_video,
+            construction,
+            media.path,
+            input_settings,
+            pca=previous.pca if reusing_features else {},
+        )
         sessions[session_id] = session
         return {
             **session.summary(session_id),

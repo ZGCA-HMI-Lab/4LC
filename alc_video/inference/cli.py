@@ -3,6 +3,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Literal, cast
 
+from alc_video.conditioning.config import DEFAULT_KEYFRAMES, KEYFRAME_COUNTS
 from alc_video.inference.config import (
     GenerationConfig,
     InferenceRequest,
@@ -63,7 +64,13 @@ def _common_parser() -> argparse.ArgumentParser:
         help="Source pixel crop; default: centered crop matching model aspect ratio",
     )
     parser.add_argument(
-        "--cache", default=str(DEFAULT_CACHE), help="Cache configuration"
+        "--cache", help=f"Cache configuration; default: {DEFAULT_CACHE}"
+    )
+    parser.add_argument(
+        "--num-keyframes",
+        type=int,
+        choices=KEYFRAME_COUNTS,
+        help=f"Source samples per 81-frame video/window; overrides the example cache settings, default: {DEFAULT_KEYFRAMES}",
     )
     parser.add_argument("--seed", type=int, default=0, help="Random seed")
     parser.add_argument("--device", default="cuda:0", help="Compute device")
@@ -147,12 +154,6 @@ def parse_inference_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--freeze-at",
         type=float,
         help="Freeze at seconds within the prepared clip; default: 0",
-    )
-    parser.add_argument(
-        "--num-keyframes",
-        type=int,
-        default=21,
-        help="Uniform source keyframe count, including endpoints",
     )
     parser.add_argument(
         "--drop-source-frames",
@@ -246,7 +247,11 @@ def _generation(
     args: argparse.Namespace, example: ExampleCase | None
 ) -> GenerationConfig:
     model_path = args.model or (example.model if example else DEFAULT_MODEL)
-    g = load_generation_config(model_path, cache=args.cache)
+    g = load_generation_config(model_path, cache=args.cache or DEFAULT_CACHE)
+    if example and example.cache is not None and args.cache is None:
+        g = replace(
+            g, cache=replace(g.cache, motion_threshold=example.cache.motion_threshold)
+        )
     sampling = SamplingConfig(
         steps=g.sampling.steps if args.steps is None else args.steps,
         vae_tiled=g.sampling.vae_tiled if args.vae_tiled is None else args.vae_tiled,
@@ -332,7 +337,13 @@ def inference_request(args: argparse.Namespace) -> InferenceRequest:
         camera=camera,
         time=time,
         mode=args.mode or ("geometry_i2v" if source.type == "image" else "control"),
-        num_keyframes=args.num_keyframes,
+        num_keyframes=args.num_keyframes
+        if args.num_keyframes is not None
+        else (
+            example.cache.num_keyframes
+            if example and example.cache
+            else DEFAULT_KEYFRAMES
+        ),
         transport=args.transport,
         drop_source_frames=args.drop_source_frames,
         propagate_rgb=args.propagate_rgb,
@@ -381,4 +392,11 @@ def rollout_request(args: argparse.Namespace) -> RolloutRequest:
         order=args.order,
         max_entries=args.max_entries,
         coverage_threshold=args.coverage_threshold,
+        num_keyframes=args.num_keyframes
+        if args.num_keyframes is not None
+        else (
+            example.cache.num_keyframes
+            if example and example.cache
+            else DEFAULT_KEYFRAMES
+        ),
     )

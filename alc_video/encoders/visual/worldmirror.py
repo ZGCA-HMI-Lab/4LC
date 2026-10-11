@@ -9,10 +9,7 @@ from omegaconf import OmegaConf
 
 from alc_video.encoders.geometry.config import worldmirror_runtime_config
 from alc_video.encoders.visual.base import (
-    CONTEXT_MAX,
-    CONTEXT_MIN,
     VisualEncoder,
-    is_keyframe_count,
 )
 from alc_video.encoders.visual.visualization import PCAFeatureVisualizer
 
@@ -170,11 +167,8 @@ class WorldMirrorFeatureEncoder(VisualEncoder):
                 f"{WORLDMIRROR_IMAGE_SIZE[1]}], got {getattr(frames, 'shape', None)}"
             )
         views = int(frames.shape[0])
-        if not is_keyframe_count(views):
-            raise ValueError(
-                f"WorldMirror frames require V=1 or {CONTEXT_MIN} <= V <= "
-                f"{CONTEXT_MAX}, got {views}"
-            )
+        if views <= 0:
+            raise ValueError(f"WorldMirror frames require V >= 1, got {views}")
         if not torch.is_floating_point(frames):
             raise TypeError("WorldMirror frames must be floating point RGB in [0,1]")
         if (
@@ -228,13 +222,12 @@ class WorldMirrorFeatureEncoder(VisualEncoder):
         if (
             not isinstance(source_latents, torch.Tensor)
             or source_latents.ndim != 4
-            or not is_keyframe_count(int(source_latents.shape[0]))
+            or int(source_latents.shape[0]) <= 0
             or tuple(int(size) for size in source_latents.shape[1:]) != expected
         ):
             raise ValueError(
                 f"WorldMirror source latents must be [K,{expected[0]},"
-                f"{expected[1]},{expected[2]}] with K=1 or {CONTEXT_MIN} <= K <= "
-                f"{CONTEXT_MAX}, got {getattr(source_latents, 'shape', None)}"
+                f"{expected[1]},{expected[2]}] with K >= 1, got {getattr(source_latents, 'shape', None)}"
             )
         return PCAFeatureVisualizer.fit(
             source_latents,

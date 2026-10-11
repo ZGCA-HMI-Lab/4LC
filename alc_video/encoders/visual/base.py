@@ -18,13 +18,7 @@ if TYPE_CHECKING:
     from alc_video.encoders.config import VisualEncoderConfig
 
 
-CONTEXT_MIN = 11
-CONTEXT_MAX = 21
 IMAGE_SIZE = (336, 560)
-
-
-def is_keyframe_count(value: int) -> bool:
-    return value == 1 or CONTEXT_MIN <= value <= CONTEXT_MAX
 
 
 def _output_count(representation: Representation, frame_count: int) -> int:
@@ -165,5 +159,4 @@ __all__ = [
     "FeatureVisualizer",
     "PCAFeatureVisualizer",
     "VisualEncoder",
-    "is_keyframe_count",
 ]
