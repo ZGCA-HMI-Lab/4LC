@@ -9,7 +9,7 @@ from typing import Literal
 import torch
 from latent_cache import CacheEntry, LatentCache
 
-from alc_video.conditioning.first_frame import construct_first_frame_entry
+from alc_video.conditioning.first_frame import reconstruct_image_entry
 from alc_video.conditioning.video import (
     construct_video_entry,
     prepare_direct_video_observations,
@@ -20,17 +20,16 @@ from alc_video.encoders.visual.visualization import (
     VideoResolutionVisualizer,
 )
 from alc_video.inference.config import GenerationConfig
-from alc_video.inference.sampling import generate_latents_from_generator
-from alc_video.models.video_model.temporal import wan_vae_latent_frame_count
-from alc_video.runtime.resources import release_resource
-from server.conditioning import Shot, move_readouts, read_conditions
-from server.inputs import (
-    DEFAULT_FPS,
+from alc_video.inference.media import (
     OUTPUT_FRAMES,
     MediaInfo,
     PreparedInput,
     prepare_input,
 )
+from alc_video.inference.sampling import generate_latents_from_generator
+from alc_video.models.video_model.temporal import wan_vae_latent_frame_count
+from alc_video.runtime.resources import release_resource
+from server.conditioning import Shot, move_readouts, read_conditions
 
 Progress = Callable[[str], None]
 
@@ -320,24 +319,10 @@ class CacheRuntime:
                 )
                 colors = observation["source_rgb"]
             else:
-                fps = DEFAULT_FPS
-                with self.measure("geometry.camera", timings, progress):
-                    self.mirror.reconstructor_module.to(self.device)
-                    camera = self.mirror.infer_camera(
-                        frames,
-                        frame_indices=torch.zeros(1, dtype=torch.int64),
-                        times=torch.zeros(1),
-                        fps=fps,
-                    )
+                fps = prepared.settings.sampling_fps
                 with self.measure("geometry_and_cache.first_frame", timings, progress):
-                    entry = construct_first_frame_entry(
-                        frames[0].permute(1, 2, 0).to(self.device),
-                        camera.intr.to(self.device),
-                        camera.c2w.to(self.device),
-                        fps,
-                        self.mirror,
-                        cache,
-                        pure=True,
+                    entry, camera = reconstruct_image_entry(
+                        frames, fps, self.mirror, cache, self.device
                     )
                 intr = camera.intr
                 poses = camera.c2w

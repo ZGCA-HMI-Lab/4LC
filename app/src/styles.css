@@ -1280,6 +1280,22 @@ main {
 .guide-controls dd {
   margin: 0;
 }
+.guide-modes {
+  margin: 12px 0 18px;
+}
+.guide-modes > div {
+  padding: 12px;
+  margin-top: 10px;
+  border-radius: 6px;
+  background: var(--surface-subtle);
+}
+.guide-modes dt {
+  color: var(--ink);
+  font-weight: 600;
+}
+.guide-modes dd {
+  margin: 4px 0 0;
+}
 .guide-shortcut {
   display: grid;
   gap: 5px;

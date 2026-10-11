@@ -113,24 +113,12 @@ def read_video_clip(
     return torch.stack(frames).contiguous(), fps
 
 
-def _encoded_fps(value: float) -> float:
-    requested = float(value)
-    if not bool(torch.isfinite(torch.tensor(requested))) or requested <= 0:
-        raise ValueError("visualization fps must be finite and positive")
-    encoded = float(f"{requested:.2f}")
-    if encoded <= 0:
-        raise ValueError("visualization fps rounds to zero at MP4 precision")
-    return encoded
-
-
 def write_raw_video(
     path: str | Path,
     video: torch.Tensor,
     *,
     fps: float,
 ) -> None:
-    import imageio.v3 as iio
-
     if (
         not isinstance(video, torch.Tensor)
         or video.ndim != 5
@@ -148,24 +136,9 @@ def write_raw_video(
     destination = Path(path).expanduser().resolve()
     if destination.exists() or destination.is_symlink():
         raise FileExistsError(f"raw video already exists: {destination}")
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    frames = (
-        video[0]
-        .detach()
-        .permute(1, 2, 3, 0)
-        .mul(255.0)
-        .round()
-        .to(device="cpu", dtype=torch.uint8)
-        .numpy()
-    )
-    iio.imwrite(
-        destination,
-        frames,
-        fps=_encoded_fps(fps),
-        codec="libx264",
-        pixelformat="yuv420p",
-        macro_block_size=None,
-    )
+    with VideoWriter(destination, fps=fps) as writer:
+        writer(video[0].permute(1, 2, 3, 0), 0)
+        writer.finish()
 
 
 __all__ = [
@@ -449,7 +422,9 @@ class VideoWriter:
         height, width = image_size
         container = av.open(str(self.video_path), mode="w")
         self._container = container
-        stream = container.add_stream("libx264", rate=Fraction(f"{self.fps:.2f}"))
+        stream = container.add_stream(
+            "libx264", rate=Fraction(str(self.fps)).limit_denominator(100000)
+        )
         stream.width = width
         stream.height = height
         stream.pix_fmt = "yuv420p"

@@ -6,11 +6,14 @@ from contextlib import ExitStack
 import torch
 
 from alc_video.conditioning.first_frame import (
-    build_image_conditions,
+    read_image_conditions,
+    reconstruct_image_entry,
 )
 from alc_video.conditioning.video import (
     build_video_conditions,
+    prepare_direct_video_observations,
 )
+from alc_video.encoders.geometry.types import CameraTrajectory
 from alc_video.inference.artifacts import request_config, save_result_config
 from alc_video.inference.config import InferenceRequest
 from alc_video.inference.generation import (
@@ -19,6 +22,7 @@ from alc_video.inference.generation import (
     load_inference_components,
 )
 from alc_video.inference.inputs import prepare_inference_inputs
+from alc_video.inference.trajectory import generate_trajectory, scene_focus_distance
 from alc_video.utils.errors import input_errors
 from alc_video.utils.logging import LOG, configure_logging, stage
 from alc_video.utils.video import write_raw_video
@@ -52,28 +56,56 @@ def run_inference(request: InferenceRequest, *, log_level: str = "INFO"):
         cache = build_cache(settings, components)
         device = torch.device(settings.device)
         if request.source.type == "image":
-            assert inputs.camera is not None
-            readouts, intr, c2w, times, fps = build_image_conditions(
+            entry, source_camera = reconstruct_image_entry(
                 inputs.frames,
-                inputs.camera,
-                mode=request.mode,
-                mirror=components.mirror,
-                cache=cache,
-                device=device,
+                inputs.settings.sampling_fps,
+                components.mirror,
+                cache,
+                device,
             )
+            camera = generate_trajectory(
+                source_camera,
+                request.camera,
+                request.time,
+                focus_distance=scene_focus_distance(
+                    entry.depth[0, 0], entry.valid[0, 0]
+                ),
+                image=True,
+            ).to(device)
+            readouts = read_image_conditions(entry, camera, request.mode, cache)
+            intr, c2w, times, fps = camera.intr, camera.c2w, camera.times, camera.fps
         else:
+            with stage("geometry.reconstruct", input=request.source.path):
+                observation = prepare_direct_video_observations(
+                    inputs.frames,
+                    inputs.observation_fps,
+                    components.mirror,
+                    components.encoders,
+                    keyframes=request.keyframes,
+                    num_keyframes=request.num_keyframes,
+                    transport=request.transport,
+                )
+            source_camera = CameraTrajectory(
+                observation["target_intr"],
+                observation["target_c2w"],
+                observation["observation_times"],
+                inputs.settings.sampling_fps,
+            )
+            camera = generate_trajectory(
+                source_camera,
+                request.camera,
+                request.time,
+                focus_distance=scene_focus_distance(
+                    observation["source_depth"][0], observation["source_valid"][0]
+                ),
+                image=False,
+            )
             readouts, intr, c2w, times, fps = build_video_conditions(
-                inputs.frames,
-                inputs.fps,
-                inputs.camera,
-                source_path=request.source.path,
-                mirror=components.mirror,
+                observation,
+                camera,
                 encoders=components.encoders,
                 cache=cache,
                 device=device,
-                keyframes=request.keyframes,
-                num_keyframes=request.num_keyframes,
-                transport=request.transport,
                 drop_source_frames=request.drop_source_frames,
                 propagate_rgb=request.propagate_rgb,
             )
@@ -83,7 +115,7 @@ def run_inference(request: InferenceRequest, *, log_level: str = "INFO"):
             len(times),
             settings.cache.image_size,
             fps,
-            request.camera or "reconstructed source",
+            request.camera.preset,
             settings.sampling.steps,
         )
         frames = generate_chunk(

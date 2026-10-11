@@ -15,6 +15,7 @@ import type { Crop, CropHandle, InputSettings, MediaInfo } from "./input";
 type Props = {
   file: File;
   kind: "image" | "video";
+  example?: import("./api.ts").Example;
   onClose: () => void;
   onConfirm: (settings: InputSettings) => void;
 };
@@ -22,6 +23,7 @@ type Props = {
 export default function UploadDialog({
   file,
   kind,
+  example,
   onClose,
   onConfirm,
 }: Props) {
@@ -50,14 +52,16 @@ export default function UploadDialog({
     const mediaUrl = URL.createObjectURL(file);
     setUrl(mediaUrl);
     const controller = new AbortController();
-    void inspectInput(file, kind, setStage, controller.signal)
+    void inspectInput(file, kind, setStage, controller.signal, example?.profile)
       .then(({ info, generation }) => {
         if (controller.signal.aborted) return;
         setInfo(info);
-        setFps(defaultSamplingFps(info));
+        const initialStart = example?.prepare.start ?? 0;
+        setStart(initialStart);
+        setFps(example?.prepare.sampling_fps ?? defaultSamplingFps(info, initialStart));
         setOutput(generation);
         setCrop(
-          centeredCrop(
+          example?.prepare.crop ?? centeredCrop(
             info.width,
             info.height,
             generation.width / generation.height,
@@ -74,9 +78,14 @@ export default function UploadDialog({
       controller.abort();
       URL.revokeObjectURL(mediaUrl);
     };
-  }, [file, kind]);
+  }, [file, kind, example]);
   const problem =
-    info && kind === "video" ? inputProblem(info, start, fps) : null;
+    info && kind === "video"
+      ? inputProblem(info, start, fps) ??
+        (example?.time.mode === "freeze" && example.time.at > inputEnd(0, fps)
+          ? `The example freezes at ${example.time.at} s, beyond the selected span. Use a longer span or edit its time setting.`
+          : null)
+      : null;
   const end = inputEnd(start, fps);
   const maxStart =
     info && Number.isFinite(fps) && fps > 0

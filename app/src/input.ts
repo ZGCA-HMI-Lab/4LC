@@ -133,9 +133,9 @@ export function inputEnd(start: number, fps: number) {
   return start + (OUTPUT_FRAMES - 1) / fps;
 }
 
-export function defaultSamplingFps(info: MediaInfo) {
+export function defaultSamplingFps(info: MediaInfo, start = 0) {
   return info.kind === "video"
-    ? (OUTPUT_FRAMES - 1) / info.duration
+    ? (OUTPUT_FRAMES - 1) / (info.duration - start)
     : DEFAULT_FPS;
 }
 

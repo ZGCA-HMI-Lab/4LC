@@ -159,6 +159,46 @@ def construct_first_frame_entry(
     return entry
 
 
+def infer_image_camera(frames, fps, mirror) -> CameraTrajectory:
+    with stage("geometry.camera"):
+        mirror.reconstructor_module.to(mirror.device)
+        camera = mirror.infer_camera(
+            frames,
+            frame_indices=torch.zeros(1, dtype=torch.int64),
+            times=torch.zeros(1),
+            fps=fps,
+        )
+    return CameraTrajectory(camera.intr, camera.c2w, torch.zeros(1), fps)
+
+
+def reconstruct_image_entry(frames, fps, mirror, cache, device):
+    camera = infer_image_camera(frames, fps, mirror)
+    entry = construct_first_frame_entry(
+        frames[0].permute(1, 2, 0).to(device),
+        camera.intr.to(device),
+        camera.c2w.to(device),
+        fps,
+        mirror,
+        cache,
+        pure=True,
+    )
+    return entry, camera
+
+
+def read_image_conditions(entry, camera, mode, cache):
+    intr, c2w, times = camera.intr, camera.c2w, camera.times
+    if mode == "i2v":
+        return build_pure_first_frame_readouts(
+            entry=entry,
+            times=times[None],
+            intrinsics=intr[None],
+            c2w=c2w[None],
+            frame_indices=torch.arange(len(times), device=entry.positions.device)[None],
+        )
+    with stage("cache.read", targets=len(times)):
+        return cache.read(entry, times[None], intr[None], c2w[None], static=True)
+
+
 def build_image_conditions(
     frames: torch.Tensor,
     camera: CameraTrajectory,
@@ -181,17 +221,7 @@ def build_image_conditions(
         pure=mode == "i2v",
     )
     intr, c2w, times = (value.to(torch.bfloat16) for value in (intr, c2w, times))
-    if mode == "i2v":
-        readouts = build_pure_first_frame_readouts(
-            entry=entry,
-            times=times[None],
-            intrinsics=intr[None],
-            c2w=c2w[None],
-            frame_indices=torch.arange(len(times), device=device)[None],
-        )
-    else:
-        with stage("cache.read", targets=len(times)):
-            readouts = cache.read(
-                entry, times[None], intr[None], c2w[None], static=True
-            )
+    readouts = read_image_conditions(
+        entry, CameraTrajectory(intr, c2w, times, fps), mode, cache
+    )
     return readouts, intr, c2w, times, fps

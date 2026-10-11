@@ -6,8 +6,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
-    "preview": "vite preview --host 127.0.0.1",
-    "test": "node --experimental-strip-types --test tests/*.test.mjs"
+    "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
     "@fontsource-variable/dm-sans": "^5.3.0",

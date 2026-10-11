@@ -11,6 +11,15 @@ from alc_video.inference.config import (
     SourceInput,
     load_generation_config,
 )
+from alc_video.inference.controls import (
+    CAMERA_PRESETS,
+    TIME_MODES,
+    CameraControl,
+    RolloutAction,
+    TimeControl,
+    control_values,
+)
+from alc_video.inference.examples import ExampleCase, load_example, media_kind
 from alc_video.runtime.profiles import DEFAULT_CACHE, DEFAULT_MODEL
 from alc_video.utils.logging import LOG_LEVELS
 
@@ -34,11 +43,25 @@ def _common_parser() -> argparse.ArgumentParser:
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        "--model", default=str(DEFAULT_MODEL), help="Shared model profile"
+        "--model",
+        help=f"Model YAML; overrides the example profile, default: {DEFAULT_MODEL}",
     )
-    parser.add_argument("--input", required=True, help="Source image or video")
-    parser.add_argument("--start-frame", type=int, default=0, help="First source frame")
-    parser.add_argument("--num-frames", type=int, default=81, help="Source frame count")
+    source = parser.add_mutually_exclusive_group(required=True)
+    source.add_argument("--input", help="Source image or video")
+    source.add_argument("--example", help="Case directory containing example.yaml")
+    parser.add_argument("--start", type=float, help="Clip start in seconds; default: 0")
+    parser.add_argument(
+        "--sampling-fps",
+        type=float,
+        help="Sample 81 frames at this rate; default: cover the remaining video, images use 16 fps",
+    )
+    parser.add_argument(
+        "--crop",
+        type=int,
+        nargs=4,
+        metavar=("X", "Y", "W", "H"),
+        help="Source pixel crop; default: centered crop matching model aspect ratio",
+    )
     parser.add_argument(
         "--cache", default=str(DEFAULT_CACHE), help="Cache configuration"
     )
@@ -47,7 +70,7 @@ def _common_parser() -> argparse.ArgumentParser:
     parser.add_argument("--steps", type=int, help="Sampling steps; default: 4")
     parser.add_argument(
         "--weights",
-        help="Override release weights (default: local-assets/models/4lc-video-<model profile>/4lc-video.safetensors)",
+        help="Override release weights (default: local-assets/models/4lc-video-<model profile>.safetensors)",
     )
     group = parser.add_mutually_exclusive_group()
     group.add_argument(
@@ -78,23 +101,52 @@ def _common_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _camera_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--camera",
+        dest="camera_preset",
+        choices=CAMERA_PRESETS,
+        help="Camera preset; inference defaults to original for video or fixed for image, rollout defaults to dolly",
+    )
+    parser.add_argument(
+        "--direction",
+        choices=("left", "right", "in", "out", "up", "down"),
+        help="Camera move direction; default: right, in or up for the selected preset",
+    )
+    parser.add_argument(
+        "--amount", type=float, help="Camera move strength from 0 to 1; default: 0.4"
+    )
+
+
 def parse_inference_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = _common_parser()
-    parser.add_argument("--prompt", required=True, help="Text prompt")
+    parser.add_argument(
+        "--prompt", help="Optional text prompt; overrides the example Prompt"
+    )
     parser.add_argument(
         "--output", default="outputs/inference/generated.mp4", help="Output video"
     )
     parser.add_argument(
-        "--source-type", choices=("image", "video"), default="video", help="Source type"
+        "--source-type",
+        choices=("image", "video"),
+        help="Source type; inferred from the input file by default",
     )
     parser.add_argument(
         "--mode",
         choices=("control", "i2v", "geometry_i2v"),
-        default="control",
-        help="Conditioning mode",
+        help="Conditioning mode; default: control for video, geometry_i2v for image",
+    )
+    _camera_arguments(parser)
+    parser.add_argument(
+        "--time",
+        dest="time_mode",
+        choices=TIME_MODES,
+        help="Source video time mode; default: normal",
     )
     parser.add_argument(
-        "--camera", help="Target camera file; otherwise use source cameras"
+        "--freeze-at",
+        type=float,
+        help="Freeze at seconds within the prepared clip; default: 0",
     )
     parser.add_argument(
         "--num-keyframes",
@@ -126,13 +178,18 @@ def parse_inference_args(argv: list[str] | None = None) -> argparse.Namespace:
 def parse_rollout_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = _common_parser()
     parser.add_argument(
-        "--prompt", required=True, action="append", help="One prompt or one per chunk"
+        "--prompt",
+        action="append",
+        help="Optional prompt; one for all windows or one per 81-frame window",
     )
     parser.add_argument(
         "--output", default="outputs/rollout/generated.mp4", help="Output video"
     )
     parser.add_argument(
-        "--source-type", choices=("image", "video"), default="image", help="Source type"
+        "--source-type",
+        choices=("image",),
+        default="image",
+        help="Rollout starts from a single image",
     )
     parser.add_argument(
         "--mode",
@@ -140,12 +197,17 @@ def parse_rollout_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="geometry_i2v",
         help="Conditioning mode",
     )
-    parser.add_argument("--camera", required=True, help="Target camera trajectory")
+    _camera_arguments(parser)
     parser.add_argument(
-        "--chunk-size",
+        "--chunks",
         type=int,
-        default=81,
-        help="Frames per chunk; (T-1)/4+1 keyframes match Wan condition slots. 81 frames sample 21 and write up to 20 new keyframes",
+        help="81-frame windows for a single camera action; default: 1. Use example.yaml actions for a multi-action route",
+    )
+    parser.add_argument(
+        "--revisit",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Append the exact reversed camera path to revisit earlier views; doubles the window count",
     )
     parser.add_argument(
         "--use-cache",
@@ -180,8 +242,11 @@ def _path(value: str) -> Path:
     return Path(value).expanduser().resolve()
 
 
-def _generation(args: argparse.Namespace) -> GenerationConfig:
-    g = load_generation_config(args.model, cache=args.cache)
+def _generation(
+    args: argparse.Namespace, example: ExampleCase | None
+) -> GenerationConfig:
+    model_path = args.model or (example.model if example else DEFAULT_MODEL)
+    g = load_generation_config(model_path, cache=args.cache)
     sampling = SamplingConfig(
         steps=g.sampling.steps if args.steps is None else args.steps,
         vae_tiled=g.sampling.vae_tiled if args.vae_tiled is None else args.vae_tiled,
@@ -207,23 +272,66 @@ def _generation(args: argparse.Namespace) -> GenerationConfig:
     )
 
 
-def _source(args: argparse.Namespace) -> SourceInput:
-    return SourceInput(
-        _path(args.input),
-        cast(Literal["image", "video"], args.source_type),
-        args.start_frame,
-        args.num_frames,
-    )
+def _source(args: argparse.Namespace, example: ExampleCase | None) -> SourceInput:
+    if example:
+        source = example.source
+        if args.source_type is not None and args.source_type != source.type:
+            raise ValueError("--source-type differs from the example task's input type")
+    else:
+        path = _path(args.input)
+        source = SourceInput(
+            path, cast(Literal["image", "video"], args.source_type or media_kind(path))
+        )
+    updates = {
+        name: getattr(args, name)
+        for name in ("start", "sampling_fps", "crop")
+        if getattr(args, name) is not None
+    }
+    if "crop" in updates:
+        updates["crop"] = tuple(updates["crop"])
+    return replace(source, **updates)
+
+
+def _camera(
+    args: argparse.Namespace, default: str, base: CameraControl | None = None
+) -> CameraControl:
+    values = control_values(base) if base else {}
+    if args.camera_preset is not None:
+        values["preset"] = args.camera_preset
+        values.pop("direction", None)
+    for name in ("direction", "amount"):
+        if getattr(args, name) is not None:
+            values[name] = getattr(args, name)
+    return CameraControl.parse(values, default=default)
 
 
 def inference_request(args: argparse.Namespace) -> InferenceRequest:
+    example = load_example(args.example) if args.example else None
+    if example and example.task == "rollout":
+        raise ValueError("This example is a rollout; use scripts/rollout.py")
+    source = _source(args, example)
+    camera = _camera(
+        args,
+        "fixed" if source.type == "image" else "original",
+        example.camera if example else None,
+    )
+    camera.validate(image=source.type == "image")
+    base_time = example.time if example else TimeControl()
+    time = TimeControl(
+        args.time_mode if args.time_mode is not None else base_time.mode,
+        args.freeze_at if args.freeze_at is not None else base_time.at,
+    )
+    time.validate(image=source.type == "image")
     return InferenceRequest(
-        generation=_generation(args),
-        source=_source(args),
-        prompt=args.prompt,
+        generation=_generation(args, example),
+        source=source,
+        prompt=args.prompt
+        if args.prompt is not None
+        else (example.prompts[0] if example else ""),
         output=_path(args.output),
-        camera=None if args.camera is None else _path(args.camera),
-        mode=args.mode,
+        camera=camera,
+        time=time,
+        mode=args.mode or ("geometry_i2v" if source.type == "image" else "control"),
         num_keyframes=args.num_keyframes,
         transport=args.transport,
         drop_source_frames=args.drop_source_frames,
@@ -232,14 +340,43 @@ def inference_request(args: argparse.Namespace) -> InferenceRequest:
 
 
 def rollout_request(args: argparse.Namespace) -> RolloutRequest:
+    example = load_example(args.example) if args.example else None
+    if example and example.task != "rollout":
+        raise ValueError("This example is a single shot; use scripts/infer.py")
+    source = _source(args, example)
+    if source.type != "image" or media_kind(source.path) != "image":
+        raise ValueError("Rollout requires a single image input")
+    if example:
+        if any(
+            getattr(args, key) is not None
+            for key in ("camera_preset", "direction", "amount", "chunks")
+        ):
+            raise ValueError(
+                "Edit the example's actions to change a multi-action route; single-action flags apply with --input"
+            )
+        actions = example.actions
+    else:
+        camera = _camera(args, "dolly")
+        action = RolloutAction.parse(
+            {
+                **control_values(camera),
+                "chunks": 1 if args.chunks is None else args.chunks,
+            },
+            name="action",
+        )
+        actions = (action,)
     return RolloutRequest(
-        generation=_generation(args),
-        source=_source(args),
-        prompts=tuple(args.prompt),
-        camera=_path(args.camera),
+        generation=_generation(args, example),
+        source=source,
+        prompts=tuple(args.prompt)
+        if args.prompt is not None
+        else (example.prompts if example else ("",)),
+        actions=actions,
+        revisit=args.revisit
+        if args.revisit is not None
+        else (example.revisit if example else False),
         output=_path(args.output),
         mode=args.mode,
-        chunk_size=args.chunk_size,
         use_cache=args.use_cache,
         order=args.order,
         max_entries=args.max_entries,

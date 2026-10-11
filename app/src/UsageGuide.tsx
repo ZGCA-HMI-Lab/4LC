@@ -25,7 +25,8 @@ export default function UsageGuide({ onClose }: { onClose: () => void }) {
             <span>1. Prepare your input</span>
           </h3>
           <p>
-            Choose <strong>Upload media</strong>. Drag the crop box or its edges
+            Choose <strong>Upload media</strong> or select an example. Examples load
+            their input preparation and shot settings. Drag the crop box or its edges
             to frame your image or video, then select <strong>Prepare Cache</strong>.
           </p>
           <p>
@@ -41,20 +42,45 @@ export default function UsageGuide({ onClose }: { onClose: () => void }) {
             <Camera size={18} aria-hidden="true" />
             <span>2. Set up your shot</span>
           </h3>
+          <p>For images, choose a <strong>Conditioning</strong> mode:</p>
+          <dl className="guide-modes">
+            <div>
+              <dt>First-frame only</dt>
+              <dd>
+                Start a video from the uploaded image. Image features guide the
+                first frame; the model generates later frames using the camera
+                motion and optional Prompt. <strong>Moving the scene view does
+                not reproject the image condition.</strong> Its preview contains
+                the image at the start and empty conditions afterwards.
+              </dd>
+            </div>
+            <div>
+              <dt>Geometry-guided</dt>
+              <dd>
+                Choose this to generate from a different viewpoint. The image’s
+                reconstructed scene guides every frame along your camera path.
+                The condition preview follows the camera while the scene itself
+                stays still. <strong>Unseen regions have no cached content</strong>{" "}
+                and are filled by the video model. The generated video can add motion.
+              </dd>
+            </div>
+          </dl>
           <dl className="guide-controls">
             <div>
               <dt>Camera</dt>
               <dd>
-                Choose a camera move, or drag the scene to change the starting
-                view. <strong>Dolly</strong> moves the camera closer or farther;
+                Drag the scene to choose a starting view. <strong>Fixed</strong>{" "}
+                holds it; the other presets move from it. Videos also offer the
+                original camera path and an offset path. <strong>Dolly</strong>{" "}
+                moves the camera closer or farther;
                 <strong> Zoom</strong> changes the lens.
               </dd>
             </div>
             <div>
               <dt>Time</dt>
               <dd>
-                Play normally, freeze a moment, or reverse the action. Use{" "}
-                <strong>Shot preview</strong> to check the camera and time together.
+                For videos, play normally, freeze a moment, or reverse the action.
+                Camera motion continues when scene time is frozen.
               </dd>
             </div>
           </dl>
@@ -62,10 +88,6 @@ export default function UsageGuide({ onClose }: { onClose: () => void }) {
             <span>Move closer / farther</span>
             <span><kbd>⌘</kbd> + scroll on Mac · <kbd>Ctrl</kbd> + scroll on Windows</span>
           </div>
-          <p>
-            For images, <strong>Geometry-guided</strong> uses the estimated scene
-            shape. <strong>First-frame only</strong> starts the video from your image.
-          </p>
           <p className="guide-caption">
             The colored points show scene shape and motion. The Cache also stores
             the other visual representations used for generation.
@@ -79,15 +101,20 @@ export default function UsageGuide({ onClose }: { onClose: () => void }) {
             <em>Optional</em>
           </h3>
           <p>
-            Select <strong>Preview conditions</strong> to see what will guide
-            generation. The cards follow Shot preview; open any card to play it
-            independently.
+            Select <strong>Preview conditions</strong> to render the current shot’s
+            conditions. <strong>Changing settings does not update these videos
+            automatically.</strong> Select <strong>Update preview</strong> after
+            changing the camera, Conditioning mode, time or representation set.
           </p>
           <p>
-            <strong>Mask</strong> shows uncovered, static and moving regions.
-            Changing camera or time settings keeps your previous preview. Select{" "}
-            <strong>Update preview</strong> to refresh it; returning to the previous
-            settings makes it current again.
+            Use <strong>Shot preview</strong> to play or scrub the scene and
+            conditions together. Open a condition card to play it independently.
+            Your previous preview remains available until replaced; returning to
+            its settings makes it current again.
+          </p>
+          <p>
+            <strong>Mask</strong> shows where the Cache provides content: static
+            regions, moving regions, and uncovered areas for the model to fill.
           </p>
           <div className="guide-note">
             <Info size={16} aria-hidden="true" />
@@ -104,14 +131,15 @@ export default function UsageGuide({ onClose }: { onClose: () => void }) {
             <span>4. Generate & download</span>
           </h3>
           <p>
-            Write a <strong>Prompt</strong> and select <strong>Generate video</strong>.
+            Optionally add a <strong>Prompt</strong>, then select{" "}
+            <strong>Generate video</strong>.
             You can generate directly without previewing conditions.
           </p>
           <p>
-            Open the result for a larger player. Choose <strong>Comparison</strong>,
-            then <strong>Prepare comparison</strong> to view the processed input,
-            mask, conditions and result together. It uses the settings from that
-            generation, even if you have since changed the controls.
+            Open the result to play it at a larger size. <strong>Comparison</strong>{" "}
+            → <strong>Prepare comparison</strong> puts the processed input, mask,
+            conditions and result side by side, using the settings that generated
+            this video.
           </p>
           <ul className="guide-downloads" aria-label="Export choices">
             <li><strong>Generated video</strong><span>The result as an MP4</span></li>
@@ -132,8 +160,7 @@ export default function UsageGuide({ onClose }: { onClose: () => void }) {
           </p>
         </div>
         <p className="guide-status">
-          Upload your own media to run the model. This Demo generates one shot at a time. For Rollout and the
-          full toolkit, see the{" "}
+          This Demo generates one shot at a time. For Rollout, see the{" "}
           <a
             href="https://github.com/ZGCA-HMI-Lab/4LC"
             target="_blank"

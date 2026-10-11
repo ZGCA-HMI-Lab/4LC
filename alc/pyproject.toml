@@ -14,12 +14,6 @@ dependencies = ["torch"]
 [project.urls]
 Repository = "https://github.com/ZGCA-HMI-Lab/4LC"
 
-[project.optional-dependencies]
-test = ["pytest"]
-
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["latent_cache*"]
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]

@@ -2,9 +2,9 @@
 
 <div align="center">
 
-Jianhui Zhang<sup>1,2</sup> &nbsp; Zuyao Lin<sup>3</sup> &nbsp; Pengxin Xu<sup>4</sup> &nbsp; Jingdong Wang<sup>2,✉</sup> &nbsp; Xingyu Chen<sup>2,✉</sup>
+Jianhui Zhang<sup>1,2</sup> &nbsp; Zuyao Lin<sup>3,2</sup> &nbsp; Pengxin Xu<sup>4,2</sup> &nbsp; Jingdong Wang<sup>2,✉</sup> &nbsp; Xingyu Chen<sup>2,✉</sup>
 
-<sub><sup>1</sup> SJTU · <sup>2</sup> ZGCA · <sup>3</sup> CASIA · <sup>4</sup> HIT &emsp; ✉&nbsp;Corresponding&nbsp;authors</sub>
+<sub><sup>1</sup> SJTU · <sup>2</sup> ZGCA · <sup>3</sup> CASIA · <sup>4</sup> HIT &emsp; ✉&nbsp;Equal&nbsp;advising</sub>
 
 <!-- TODO: replace XXXX.XXXXX with the final arXiv identifier throughout this file. -->
 <p>
@@ -166,75 +166,127 @@ Keep the representation bindings and model structure consistent with the chosen 
 
 **Choose a conditioning mode**
 
-| `--mode` | Source | Conditioning | Camera file |
+| `--mode` | Source | Conditioning | Default camera |
 | :--- | :--- | :--- | :--- |
-| `control` | Video | Read video features at target times and viewpoints | Optional; defaults to reconstructed source cameras |
-| `i2v` | Image | Features condition the first frame only | Required |
-| `geometry_i2v` | Image | Reproject first-frame features into target views | Required |
+| `control` | Video | Read video features at target times and viewpoints | Original input path |
+| `i2v` | Image | Image features guide the first frame; later frames are generated | Fixed input view |
+| `geometry_i2v` | Image | Reproject the reconstructed image into target views for NVS | Fixed input view |
 
-Both image modes use the configured WorldMirror and visual encoders. LightX2V is enabled with four sampling steps; `--no-lightx2v` disables it and `--steps` sets the sampling count.
+The input type and default mode are inferred from the file. Both image modes use WorldMirror and the visual encoders. Prompt is optional. LightX2V uses four sampling steps by default; `--no-lightx2v` disables it and `--steps` changes the step count.
 
-**Video control**
+**Run a case**
 
-The default selects 21 keyframes from the first 81 source frames and uses their reconstructed cameras and times. Use `--start-frame` and `--num-frames` to select a clip, or `--camera` to supply a target trajectory in the same world frame.
+Each directory under `examples/` contains its input and an `example.yaml`. The CLI and [App](app/README.md) load the same input preparation, model and shot settings:
 
 ```bash
-python scripts/infer.py --source-type video --mode control \
-  --input examples/input.mp4 \
-  --prompt "A continuous shot of the scene with natural motion." \
+python scripts/infer.py --example examples/spatial-control --output outputs/control.mp4
+python scripts/infer.py --example examples/nvs --output outputs/nvs.mp4
+```
+
+**Control your own video**
+
+The full input span is sampled to **81 frames**, keeping its duration, and 21 keyframes are encoded by default. `--start` selects the beginning in seconds; `--sampling-fps` sets the spacing, so the end is `start + 80 / sampling_fps`. Without a sampling rate, the remaining video is used. `--crop X Y W H` selects source pixels; otherwise a centered crop matches the model's aspect ratio. The shared input processor then resizes to the configured resolution.
+
+```bash
+python scripts/infer.py --input path/to/video.mp4 \
+  --camera offset --direction left --amount 0.3 \
+  --time freeze --freeze-at 2 \
   --output outputs/control.mp4
 ```
 
-**Image generation**
+`--time normal`, `freeze` and `reverse` control scene time independently of the camera. Freeze times are measured from the start of the prepared clip. Video playback retains the selected input span; images default to 16 fps.
 
-Choose first-frame-only conditioning or geometric guidance along the same 81-frame camera path:
+**Generate from an image**
+
+Choose `geometry_i2v` to guide each target view with reconstructed geometry. `i2v` uses the original image features only at the first frame; changing the camera does not reproject that first-frame condition.
 
 ```bash
-python scripts/infer.py --source-type image --mode i2v \
-  --input examples/input.png \
-  --camera examples/cameras-81.safetensors \
+python scripts/infer.py --input path/to/image.png --mode geometry_i2v \
+  --camera orbit --direction right --amount 0.3 \
   --prompt "A smooth camera move through the scene." \
-  --output outputs/i2v.mp4
-
-python scripts/infer.py --source-type image --mode geometry_i2v \
-  --input examples/input.png \
-  --camera examples/cameras-81.safetensors \
-  --prompt "A smooth camera move through the scene." \
-  --output outputs/geometry-i2v.mp4
+  --output outputs/nvs.mp4
 ```
+
+<details>
+<summary><b>Camera presets</b></summary>
+
+CLI presets start from the input's first estimated camera. The App also lets you choose a starting view interactively. `--amount` ranges from 0 to 1, with default 0.4. Translation and orbit radius use the first view's valid median depth, denoted D below.
+
+| Preset | Directions | Effect at amount 1 |
+| :--- | :--- | :--- |
+| `original` | — | Follow the reconstructed video camera path |
+| `offset` | Left / right | Shift the whole input path by 0.2 D along each camera's right axis |
+| `fixed` | — | Keep the starting camera and lens |
+| `dolly` | In / out | Move 0.5 D forward or backward, keeping the lens |
+| `zoom` | In / out | Double or halve focal length, keeping the camera pose |
+| `truck` | Left / right | Move 0.4 D sideways without rotating |
+| `pedestal` | Up / down | Move 0.3 D along world vertical |
+| `pan` | Left / right | Turn 60° in place |
+| `tilt` | Up / down | Tilt 45° in place |
+| `orbit` | Left / right | Orbit 90° around a pivot D ahead of the starting camera |
+
+The default direction is right, in or up for the selected preset. `original` and `offset` require video input. CLI and browser implementations use the same camera conventions and preset definitions.
+
+</details>
 
 **Rollout with Cache history**
 
-Rollout generates overlapping segments and writes static scene information back to the Cache. History reuse is enabled by default and requires `geometry_i2v`. This two-segment example produces **161 frames**:
+Rollout starts from **one image** and generates 81-frame windows. Each window shares its first frame with the previous one; N windows produce **80 × N + 1 frames**. Cache history is enabled by default and uses `geometry_i2v`.
 
 ```bash
-python scripts/rollout.py --mode geometry_i2v \
-  --input examples/input.png \
-  --camera examples/cameras-161.safetensors \
-  --prompt "A smooth camera move through the scene." \
-  --output outputs/rollout.mp4
+# One outgoing window followed by the exact return path: 161 frames.
+python scripts/rollout.py --input path/to/image.png \
+  --camera dolly --direction in --amount 0.3 --revisit \
+  --output outputs/revisit.mp4
+
+# Multi-action exploration defined by a case.
+python scripts/rollout.py --example examples/exploration \
+  --output outputs/exploration.mp4
 ```
 
-- **Segments:** `--chunk-size 81` gives camera lengths of 81, 161, 241, … . For chunk size `C`, `n` segments need `1 + (C-1)*n` camera frames. Cache rollout accepts `4n+1` chunk sizes from 41 to 81.
-- **Keyframes:** each segment samples `(C-1)/4+1` keyframes. At 81 frames, 21 are sampled and up to 20 new keyframes are written after dropping the shared first frame. `--num-keyframes` belongs to ordinary video inference.
-- **History:** `--order`, `--max-entries` and `--coverage-threshold` control history composition. With `--no-use-cache`, each segment starts from the preceding segment's last frame; both `i2v` and `geometry_i2v` are supported.
-- **Input and prompts:** `--source-type video` uses only the video's first frame to initialize rollout. Supply one `--prompt` for the whole trajectory, or repeat it once per segment.
+For a single action, `--chunks` sets its number of windows. **Amount is the total change over that action**, so more windows extend its duration. A multi-action case carries each final camera pose and lens into the next action. `revisit: true` appends the exact reversed camera path and doubles the window count. The initial scene scale remains fixed throughout the route.
 
-Cache `target_chunk_size` controls **readout batching**; rollout `--chunk-size` controls **generated segment length**.
+Each window samples 21 keyframes and writes up to 20 new static Cache keyframes. `--order`, `--max-entries` and `--coverage-threshold` control history reuse. `--no-use-cache` generates from each preceding final frame, with `i2v` or `geometry_i2v`. Supply one Prompt for the whole route, or repeat `--prompt` once per window. Cache `target_chunk_size` controls readout batching.
 
 <details>
-<summary><b>Camera file format</b></summary>
+<summary><b>Example directory and configuration</b></summary>
 
-Use a safetensors file with floating tensors:
+```text
+examples/
+└── spatial-control/
+    ├── input.mp4
+    └── example.yaml
+```
 
-| Field | Shape | Meaning |
-| :--- | :--- | :--- |
-| `intr` | `[T,3,3]` | Intrinsics normalized by image width and height |
-| `c2w` | `[T,4,4]` | OpenCV camera-to-world poses |
-| `times` | `[T]` | Scene times in seconds |
-| `fps` | Scalar | Output frame rate |
+A video case:
 
-Cameras must share the source scene's world frame. Image generation requires `4n+1` camera frames; rollout follows the segment-length rule above. For video control, camera length must match the generated clip; omitted `times` and `fps` use source timing. Image input and rollout require all four fields. See [coordinate conventions](alc/README.md#inputs-and-encoders).
+```yaml
+task: spatial                    # spatial, temporal, nvs or rollout
+input: input.mp4                  # relative to this file
+model: flux-vjepa                 # profile name, or a relative model YAML path
+prompt: A continuous shot with natural motion.
+prepare:                         # optional; omitted values use full-span / centered-crop defaults
+  start: 0
+  sampling_fps: 16
+camera: {preset: offset, direction: left, amount: 0.3}
+time: {mode: normal}              # freeze uses at: <seconds>; reverse reads time backwards
+```
+
+For NVS, use `task: nvs`, an image input and a camera move or `fixed`. Images have no source time controls. A rollout case uses `actions` in place of `camera` and `time`:
+
+```yaml
+task: rollout
+input: input.png
+model: flux-vjepa
+prompt: A smooth exploration of the scene.
+actions:
+  - {preset: dolly, direction: in, amount: 0.3, chunks: 1}
+  - {preset: pan, direction: right, amount: 0.3, chunks: 1}
+  - {preset: dolly, direction: in, amount: 0.3, chunks: 1}
+revisit: true
+```
+
+`prepare.crop` accepts `[x, y, width, height]` in source pixels. Explicit CLI options override case settings; multi-action routes are edited in the case's `actions`. Unknown configuration fields fail with their field paths. The App discovers single-shot case directories and restores their settings; rollout cases remain CLI examples.
 
 </details>
 

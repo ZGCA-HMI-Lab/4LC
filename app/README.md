@@ -45,13 +45,15 @@ The wide workspace uses a 3:2 split: scene, compact camera/time controls and Pro
 
 **Preview conditions** reads the selected full trajectory and renders VAE/PCA visualizations. PCA bases remain fixed for a Cache. The preview follows the single Shot preview timeline. Changing controls retains the previous preview with a Settings changed marker; Update preview replaces it, and returning to matching settings restores its valid state.
 
+For images, **First-frame only** supplies the original image features at the first frame and leaves later image conditions empty. Moving the scene view does not reproject these features. **Geometry-guided** reprojects the reconstructed static scene along the target camera path; its condition videos follow the camera, and the video model fills uncovered regions and can add motion. After switching modes or adjusting the camera, select **Update preview** to render the new conditions.
+
 The Mask preview combines uncovered, static-hit and dynamic-hit regions after the model's existing spatial/temporal alignment and coverage aggregation. The current published profiles consume coverage; motion color is a readout diagnostic. Clicking a condition card or the generated video opens an independent player; the workspace pauses and keeps its original position.
 
-**Generate video** works with or without a preview. Matching conditions are reused. The expanded result switches between Result and Comparison. Prepare comparison uses the saved generated-shot conditions, reusing matching previews or explicitly rendering missing ones. Later edits to controls or previews cannot change its content.
+**Generate video** works with or without a preview; Prompt is optional. Matching conditions are reused. The expanded result switches between Result and Comparison. Prepare comparison uses the saved generated-shot conditions, reusing matching previews or explicitly rendering missing ones. Later edits to controls or previews cannot change its content.
 
 The labeled comparison places Input, Mask and Generated on the first row, followed by the representations: 6 streams in a 2×3 grid or 8 streams in a 3×3 grid with one empty cell. Input is the processed media used for construction; a still image holds for the full duration. All streams have the same frame count and playback FPS. Export offers the generated MP4, a ZIP containing the individual MP4s, and the combined MP4. Cache/tensor export, parameter-file export and import functionality are outside the App's scope. Both operations report their current stage; sampling also reports completed steps. Core readout/sampling time and total browser waiting time are displayed separately. Total time includes queueing, transfers, decoding and result preparation.
 
-The Usage guide in the toolbar covers these controls. The App discovers images (`jpg`, `jpeg`, `png`, `webp`) and videos (`mp4`, `webm`, `mov`, `mkv`) in `examples/`, including subfolders. An optional same-stem `.txt` supplies the Prompt. Refresh the page after adding media. Choosing an example opens the same preparation window as an upload. Visitor uploads are not collected as examples.
+The App discovers `example.yaml` files in `examples/<case>/`. Each case contains its input resource and configuration; see the [case format](https://github.com/ZGCA-HMI-Lab/4LC#inference). Selecting a case opens the preparation window with its crop and sampling defaults, then restores its model, Prompt, camera and time settings after construction. `spatial`, `temporal` and `nvs` cases are shown; `rollout` cases are used by the CLI. Refresh after adding local cases. Visitor uploads are not collected.
 
 ## Backend
 
@@ -77,4 +79,4 @@ The Space uses Python 3.10, PyTorch 2.8 / CUDA 12.8 and the matching torch-scatt
 
 All required assets have public download sources. The official FLUX.2-klein VAE has the same tensors as the original FLUX.2-dev VAE at the App's bfloat16 precision; its configuration and parameter names match. The App's two adapters come from `jianhuizhang/4LC-Video`.
 
-The Demo address is [4LC-Demo](https://huggingface.co/spaces/jianhuizhang/4LC-Demo). Validation was completed in the private [test Space](https://huggingface.co/spaces/jianhuizhang/4LC-Demo-test). Both profiles have passed video construction, condition preview, generation and export on ZeroGPU; both image conditioning modes have passed generation. See [release checklist](../TODO.md#app-交互应用).
+The public Demo is [4LC-Demo](https://huggingface.co/spaces/jianhuizhang/4LC-Demo). To add examples, commit the case directories, each with its input and `example.yaml`, to the code repository's `examples/` directory, then restart the Space to load the updated repository.

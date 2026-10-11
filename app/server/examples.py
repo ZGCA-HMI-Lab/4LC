@@ -1,25 +1,34 @@
+from dataclasses import asdict
 from pathlib import Path
 from urllib.parse import quote
 
-IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
-VIDEO_SUFFIXES = {".mp4", ".webm", ".mov", ".mkv"}
+from alc_video.inference.examples import discover_cases
 
 
 def discover_examples(directory: Path) -> list[dict]:
     examples = []
-    for path in sorted(directory.rglob("*")):
-        suffix = path.suffix.lower()
-        if not path.is_file() or suffix not in IMAGE_SUFFIXES | VIDEO_SUFFIXES:
+    for case in discover_cases(directory):
+        if case.task == "rollout":
             continue
-        name = path.relative_to(directory).as_posix()
-        prompt = path.with_suffix(".txt")
+        identifier = case.path.parent.relative_to(directory.resolve()).as_posix()
+        media = case.source.path.relative_to(directory.resolve()).as_posix()
+        prepare = {
+            name: value
+            for name, value in asdict(case.source).items()
+            if name not in ("path", "type") and value is not None
+        }
         examples.append(
             {
-                "id": name,
-                "name": path.stem.replace("_", " ").replace("-", " "),
-                "kind": "image" if suffix in IMAGE_SUFFIXES else "video",
-                "url": "api/example-files/" + quote(name),
-                "prompt": prompt.read_text().strip() if prompt.is_file() else "",
+                "id": identifier,
+                "name": case.path.parent.name.replace("_", " ").replace("-", " "),
+                "kind": case.source.type,
+                "url": "api/example-files/" + quote(media),
+                "prompt": case.prompts[0],
+                "profile": case.model.stem,
+                "mode": case.mode,
+                "prepare": prepare,
+                "camera": asdict(case.camera),
+                "time": asdict(case.time),
             }
         )
     return examples

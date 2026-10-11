@@ -350,6 +350,7 @@ export default function App() {
   }
   function confirmUpload(settings: InputSettings) {
     if (!pendingUpload) return;
+    const example = pendingUpload.example;
     buildRequest.current?.abort();
     previewRequest.current?.abort();
     generationRequest.current?.abort();
@@ -378,9 +379,9 @@ export default function App() {
     setInputError(null);
     resetPreview(INITIAL_CAMERA, pendingUpload.kind === "image");
     setPendingUpload(null);
-    void buildCache(settings);
+    void buildCache(settings, example);
   }
-  async function buildCache(settings = inputSettings) {
+  async function buildCache(settings = inputSettings, example?: Example) {
     if (!settings) return;
     const controller = new AbortController();
     buildRequest.current = controller;
@@ -414,6 +415,13 @@ export default function App() {
           ),
           result.source_type === "image",
         );
+        if (example) {
+          setProfile(example.profile);
+          setImageMode(example.mode === "control" ? "geometry_i2v" : example.mode);
+          setMotion(example.camera);
+          setTimePreset(example.time.mode === "normal" ? "forward" : example.time.mode);
+          setFreezeTime(result.source_duration > 0 ? example.time.at / result.source_duration : 0);
+        }
       }
     } catch (error) {
       if (!controller.signal.aborted) {
@@ -608,7 +616,7 @@ export default function App() {
           onExample={(example) => void chooseExample(example)}
           onUpload={uploadMedia}
           onPreview={() => setExpanded("source")}
-          onPrepare={() => void buildCache()}
+          onPrepare={() => void buildCache(inputSettings, examples.find((item) => item.id === uploaded?.exampleId))}
           preparing={buildStage !== null}
           busy={
             conditionStage !== null ||
@@ -1036,10 +1044,9 @@ export default function App() {
                   {generationError}
                 </p>
               )}
-              <label htmlFor="prompt">Prompt</label>
+              <label htmlFor="prompt">Prompt (optional)</label>
               <textarea
                 id="prompt"
-                required
                 value={prompt}
                 rows={3}
                 onChange={(event) => setPrompt(event.target.value)}
@@ -1049,7 +1056,6 @@ export default function App() {
                   className="button primary"
                   disabled={
                     !ready ||
-                    !prompt.trim() ||
                     videoStage !== null ||
                     conditionStage !== null ||
                     comparisonStage !== null ||
@@ -1069,6 +1075,7 @@ export default function App() {
           key={pendingUpload.file.name + pendingUpload.file.lastModified}
           file={pendingUpload.file}
           kind={pendingUpload.kind}
+          example={pendingUpload.example}
           onClose={() => setPendingUpload(null)}
           onConfirm={confirmUpload}
         />

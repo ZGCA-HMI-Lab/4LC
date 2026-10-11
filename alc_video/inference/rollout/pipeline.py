@@ -6,7 +6,11 @@ from pathlib import Path
 
 import torch
 
-from alc_video.conditioning.first_frame import build_image_conditions
+from alc_video.conditioning.first_frame import (
+    build_image_conditions,
+    infer_image_camera,
+)
+from alc_video.conditioning.geometry import estimate_context_geometry
 from alc_video.encoders.geometry.types import CameraTrajectory
 from alc_video.inference.artifacts import (
     completed_rollout_output,
@@ -25,6 +29,10 @@ from alc_video.inference.rollout.history import (
     initialize_history,
     read_history,
     write_history,
+)
+from alc_video.inference.trajectory import (
+    generate_rollout_trajectory,
+    scene_focus_distance,
 )
 from alc_video.utils.errors import input_errors
 from alc_video.utils.logging import LOG, configure_logging, stage
@@ -65,10 +73,35 @@ def run_rollout(
         components = load_inference_components(settings, resources)
         cache = build_cache(settings, components)
         device = torch.device(settings.device)
-        camera = inputs.camera.to(device)
-        assert camera.times is not None and camera.fps is not None
         count = len(inputs.prompts)
         state = RolloutState(inputs.first_frame.to(device))
+        source_camera = infer_image_camera(
+            inputs.first_frame.permute(2, 0, 1)[None],
+            inputs.fps,
+            components.mirror,
+        ).to(device)
+        if request.use_cache:
+            initialize_history(cache, components, state, source_camera)
+            seed = state.history[0]
+            distance = scene_focus_distance(seed.depth[0, 0], seed.valid[0, 0])
+        else:
+            depth, valid, _moving = estimate_context_geometry(
+                components.mirror,
+                state.overlap[None],
+                source_camera.intr,
+                source_camera.c2w,
+                torch.zeros(1, device=device, dtype=torch.int64),
+                inputs.fps,
+                settings.cache,
+            )
+            distance = scene_focus_distance(depth[0], valid[0])
+        camera = generate_rollout_trajectory(
+            source_camera,
+            request.actions,
+            focus_distance=distance,
+            revisit=request.revisit,
+        ).to(device)
+        assert camera.times is not None and camera.fps is not None
         LOG.info(
             "rollout request frames=%s chunks=%s chunk_size=%s fps=%s num_keyframes=%s",
             len(camera.times),
@@ -86,7 +119,6 @@ def run_rollout(
                 path.unlink(missing_ok=True)
         writer = resources.enter_context(VideoWriter(output, fps=camera.fps))
         if request.use_cache:
-            initialize_history(cache, components, state, camera)
             writer(state.overlap[None], 0)
         for index, prompt in enumerate(inputs.prompts):
             chunk_started = time.perf_counter()

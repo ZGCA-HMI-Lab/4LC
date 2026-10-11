@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, fields
+from math import floor
 from time import perf_counter
 
 import av
@@ -90,10 +91,28 @@ class InputSettings:
         unknown = set(value) - {item.name for item in fields(cls)} - {"media_path"}
         if unknown:
             raise ValueError(f"Unknown input settings: {', '.join(sorted(unknown))}")
-        start, fps = float(value["start"]), float(value["sampling_fps"])
-        crop = tuple(value["crop"])
+        start = float(value.get("start", 0))
+        remaining = media.duration - start
+        selected_fps = value.get("sampling_fps")
+        if selected_fps is None:
+            if media.kind == "video" and remaining <= 0:
+                raise ValueError("Start must be before the end of the video.")
+            selected_fps = (
+                (OUTPUT_FRAMES - 1) / remaining
+                if media.kind == "video"
+                else DEFAULT_FPS
+            )
+        fps = float(selected_fps)
+        selected_crop = value.get("crop")
+        crop = (
+            centered_crop(media.width, media.height, size)
+            if selected_crop is None
+            else tuple(selected_crop)
+        )
         if not all(np.isfinite([start, fps])) or fps <= 0:
             raise ValueError("Choose a positive sampling FPS and a finite start time.")
+        if media.kind == "image" and start != 0:
+            raise ValueError("Start selects a video segment; use 0 for an image.")
         end = start + (OUTPUT_FRAMES - 1) / fps
         if media.kind == "video" and not 0 <= start < end <= media.duration + 1e-5:
             raise ValueError(
@@ -116,6 +135,16 @@ class InputSettings:
         if abs(w - h * target_w / target_h) > 1.5:
             raise ValueError("The crop must match the generation aspect ratio.")
         return cls(start, fps, crop)
+
+
+def centered_crop(
+    width: int, height: int, size: tuple[int, int]
+) -> tuple[int, int, int, int]:
+    """Match the browser crop's positive-pixel Math.round convention."""
+    aspect = size[1] / size[0]
+    h = min(height, width / aspect)
+    w, h = floor(h * aspect + 0.5), floor(h + 0.5)
+    return floor((width - w) / 2 + 0.5), floor((height - h) / 2 + 0.5), w, h
 
 
 @dataclass(frozen=True)

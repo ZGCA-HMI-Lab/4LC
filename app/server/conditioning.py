@@ -5,7 +5,7 @@ from dataclasses import dataclass, fields, replace
 import torch
 from latent_cache import LatentCache, Readout
 
-from alc_video.conditioning.first_frame import build_pure_first_frame_readouts
+from alc_video.conditioning.first_frame import read_image_conditions
 from alc_video.encoders.geometry.types import CameraTrajectory
 
 
@@ -74,20 +74,11 @@ def move_readouts(readouts: dict[str, Readout], device) -> dict[str, Readout]:
 def read_conditions(
     cache: LatentCache, entry, camera: CameraTrajectory, mode: str
 ) -> dict[str, Readout]:
-    if mode == "i2v":
-        return build_pure_first_frame_readouts(
-            entry=entry,
-            times=camera.times[None],
-            intrinsics=camera.intr[None],
-            c2w=camera.c2w[None],
-            frame_indices=torch.arange(
-                len(camera.times), device=entry.positions.device
-            )[None],
-        )
+    if mode in ("i2v", "geometry_i2v"):
+        return read_image_conditions(entry, camera, mode, cache)
     return cache.read(
         entry,
         camera.times[None],
         camera.intr[None],
         camera.c2w[None],
-        static=mode == "geometry_i2v",
     )

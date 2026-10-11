@@ -61,11 +61,9 @@ class WanTextEncoder:
         )
 
     @torch.no_grad()
-    def _encode_text(self, caption: str, *, allow_empty: bool) -> torch.Tensor:
+    def encode_text(self, caption: str) -> torch.Tensor:
         if not isinstance(caption, str):
             raise TypeError("caption must be a string")
-        if not allow_empty and not caption.strip():
-            raise ValueError("caption must be a non-empty string")
         ids, mask = self.tokenizer(caption, return_mask=True, add_special_tokens=True)
         ids = ids.to(self.device)
         mask = mask.to(self.device)
@@ -81,12 +79,8 @@ class WanTextEncoder:
         return context[0].to(device="cpu", dtype=torch.bfloat16).contiguous()
 
     @torch.no_grad()
-    def encode_text(self, caption: str) -> torch.Tensor:
-        return self._encode_text(caption, allow_empty=False)
-
-    @torch.no_grad()
     def encode_unconditional(self) -> torch.Tensor:
-        return self._encode_text("", allow_empty=True)
+        return self.encode_text("")
 
     def offload(self) -> None:
         self.text_encoder.to("cpu")

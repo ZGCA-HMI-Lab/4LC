@@ -8,10 +8,10 @@ import gradio as gr
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.staticfiles import StaticFiles
 
+from alc_video.inference.media import inspect_media
 from server.comparison import Comparison, compose_comparison
 from server.conditioning import Shot
 from server.examples import discover_examples
-from server.inputs import inspect_media
 from server.media import encode_video
 from server.runtime import BuiltCache, CacheRuntime
 from server.scene import SceneAsset, export_scene
@@ -213,8 +213,8 @@ def create_app(runtime: CacheRuntime, *, gpu=None) -> FastAPI:
         shot = Shot.parse(value, session.cache)
         if shot.profile not in runtime.profiles:
             raise gr.Error(f"Model profile {shot.profile!r} is not loaded.")
-        if not isinstance(prompt, str) or not prompt.strip():
-            raise gr.Error("Enter a prompt before generating a video.")
+        if not isinstance(prompt, str):
+            raise gr.Error("Prompt must be text.")
         candidates = (
             session.conditions,
             session.preview.condition if session.preview else None,

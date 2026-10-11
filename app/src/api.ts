@@ -2,6 +2,7 @@ import { Client, handle_file } from "@gradio/client";
 import { decodeScene } from "./scene.ts";
 import type { SceneData, SceneDescriptor } from "./scene.ts";
 import type { MediaInfo, InputSettings } from "./input.ts";
+import type { Motion } from "./camera.ts";
 
 export type Example = {
   id: string;
@@ -9,6 +10,11 @@ export type Example = {
   kind: "video" | "image";
   url: string;
   prompt: string;
+  profile: string;
+  mode: "control" | "geometry_i2v";
+  prepare: Partial<Omit<InputSettings, "media_path">>;
+  camera: Motion;
+  time: { mode: "normal" | "freeze" | "reverse"; at: number };
 };
 
 export type CacheSummary = {
@@ -63,6 +69,7 @@ export async function inspectInput(
   kind: "image" | "video",
   onProgress: (stage: string) => void,
   signal: AbortSignal,
+  profile?: string,
 ): Promise<{ info: MediaInfo; generation: { width: number; height: number } }> {
   const response = await fetch(new URL("api/status", window.location.href), {
     signal,
@@ -76,6 +83,8 @@ export async function inspectInput(
     );
   }
   const status = await response.json();
+  if (profile && !status.profiles.includes(profile))
+    throw new Error(`This example needs model profile ${profile}, which is not loaded.`);
   connection ??= Client.connect(
     new URL("api/gradio", window.location.href).href,
     {

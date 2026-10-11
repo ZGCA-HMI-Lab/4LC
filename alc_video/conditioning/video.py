@@ -224,45 +224,17 @@ def construct_video_entry(
 
 
 def build_video_conditions(
-    frames,
-    source_fps,
+    observation,
     camera,
     *,
-    source_path,
-    mirror,
     encoders,
     cache,
     device,
-    keyframes,
-    num_keyframes,
-    transport,
     drop_source_frames,
     propagate_rgb,
 ):
-    with stage("geometry.reconstruct", input=source_path):
-        observation = prepare_direct_video_observations(
-            frames,
-            source_fps,
-            mirror,
-            encoders,
-            keyframes=keyframes,
-            num_keyframes=num_keyframes,
-            transport=transport,
-        )
-    if camera is None:
-        intr = observation["target_intr"].to(device)
-        c2w = observation["target_c2w"].to(device)
-        times = observation["observation_times"].to(device)
-        fps = float(observation["fps"])
-    else:
-        camera = camera.to(device)
-        intr, c2w = camera.intr, camera.c2w
-        times = (
-            observation["observation_times"].to(device)
-            if camera.times is None
-            else camera.times
-        )
-        fps = float(observation["fps"]) if camera.fps is None else camera.fps
+    camera = camera.to(device)
+    intr, c2w, times, fps = camera.intr, camera.c2w, camera.times, camera.fps
     active_cache = cache
     if propagate_rgb:
         active_cache = LatentCache(

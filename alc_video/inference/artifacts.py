@@ -5,6 +5,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from alc_video.inference.config import InferenceRequest, Request, RolloutRequest
+from alc_video.inference.controls import control_values
 from alc_video.utils.errors import input_errors
 from alc_video.utils.logging import LOG
 
@@ -24,7 +25,7 @@ def request_config(request: Request) -> dict[str, object]:
     encoders = asdict(g.encoders)
     encoders["representations"] = dict(g.encoders.representations)
     source = asdict(request.source)
-    condition: dict[str, object] = {"mode": request.mode, "camera": request.camera}
+    condition: dict[str, object] = {"mode": request.mode}
     rollout: dict[str, object] = {
         "chunk_size": 81,
         "use_cache": True,
@@ -33,6 +34,9 @@ def request_config(request: Request) -> dict[str, object]:
         "coverage_threshold": 0.95,
     }
     if isinstance(request, InferenceRequest):
+        condition.update(
+            camera=control_values(request.camera), time=asdict(request.time)
+        )
         source.update(
             keyframes=request.keyframes,
             num_keyframes=request.num_keyframes,
@@ -45,6 +49,13 @@ def request_config(request: Request) -> dict[str, object]:
             request.prompts[0] if len(request.prompts) == 1 else request.prompts
         )
         rollout = {name: getattr(request, name) for name in rollout}
+        rollout.update(
+            actions=[
+                {**control_values(action.camera), "chunks": action.chunks}
+                for action in request.actions
+            ],
+            revisit=request.revisit,
+        )
     value = {
         "runtime": {"seed": g.seed, "device": g.device},
         "model": {**asdict(g.model), "weights": g.weights, "lightx2v": g.lightx2v},

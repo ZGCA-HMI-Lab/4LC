@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
+from alc_video.inference.controls import CameraControl, RolloutAction, TimeControl
 from alc_video.models.config import ModelConfig, parse_model_config
 from alc_video.runtime.profiles import (
     DEFAULT_CACHE,
@@ -48,8 +49,9 @@ class GenerationConfig:
 class SourceInput:
     path: Path
     type: Literal["image", "video"] = "video"
-    start_frame: int = 0
-    num_frames: int = 81
+    start: float = 0.0
+    sampling_fps: float | None = None
+    crop: tuple[int, int, int, int] | None = None
 
 
 @dataclass(frozen=True)
@@ -58,7 +60,8 @@ class InferenceRequest:
     source: SourceInput
     prompt: str
     output: Path = Path("outputs/inference/generated.mp4")
-    camera: Path | None = None
+    camera: CameraControl = field(default_factory=CameraControl)
+    time: TimeControl = field(default_factory=TimeControl)
     mode: Literal["control", "i2v", "geometry_i2v"] = "control"
     num_keyframes: int = 21
     keyframes: tuple[int, ...] | None = None
@@ -72,7 +75,8 @@ class RolloutRequest:
     generation: GenerationConfig
     source: SourceInput
     prompts: tuple[str, ...]
-    camera: Path
+    actions: tuple[RolloutAction, ...]
+    revisit: bool = False
     output: Path = Path("outputs/rollout/generated.mp4")
     mode: Literal["i2v", "geometry_i2v"] = "geometry_i2v"
     chunk_size: int = 81
@@ -105,9 +109,7 @@ def load_generation_config(
                 wan_model_root=Path(encoders["wan_model_root"]),
             ),
             cache=LatentCacheConfig(**cache_values),
-            weights=(
-                assets / f"4lc-video-{Path(model).stem}.safetensors"
-            ).resolve(),
+            weights=(assets / f"4lc-video-{Path(model).stem}.safetensors").resolve(),
             lightx2v=(
                 assets
                 / "lightx2v/Wan21_T2V_14B_lightx2v_cfg_step_distill_lora_rank64.safetensors"
