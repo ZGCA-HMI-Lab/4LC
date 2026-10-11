@@ -1,0 +1,46 @@
+visual_encoders:
+  flux2:
+    backend: flux2_vae
+    path: ../local-assets/models/FLUX.2-VAE
+    batch_size: 4
+  wan_vae:
+    backend: wan_vae
+    path: ../local-assets/models/Wan2.1-T2V-14B/Wan2.1_VAE.pth
+    batch_size: 4
+  sd_vae:
+    backend: sd_vae
+    path: ../local-assets/models/stabilityai/sd-vae-ft-mse
+    batch_size: 4
+  vjepa2:
+    backend: vjepa2
+    path: ../local-assets/models/vjepa2/vjepa2_1_vitl_dist_vitG_384.pt
+    batch_size: 4
+  dinov2:
+    backend: dinov2
+    path: ../local-assets/models/dinov2
+    batch_size: 4
+  vggt:
+    backend: vggt
+    path: ../local-assets/models/VGGT-1B
+    batch_size: 4
+    levels: [1]
+  wm:
+    backend: worldmirror
+    path: ../local-assets/models/NeoVerse/reconstructor.ckpt
+    batch_size: 4
+    levels: [1]
+  resnet50:
+    backend: resnet50_layer2
+    path: ../local-assets/models/resnet/resnet50-11ad3fa6.pth
+    batch_size: 4
+  vit:
+    backend: vit
+    path: ../local-assets/models/vit
+    batch_size: 4
+  depth_anything_v2:
+    backend: depth_anything_v2
+    path: ../local-assets/models/depth-anything-v2/depth_anything_v2_vitl.pth
+    batch_size: 4
+worldmirror:
+  default:
+    checkpoint: ../local-assets/models/NeoVerse/reconstructor.ckpt

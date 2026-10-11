@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "latent-cache"
+version = "0.1.0"
+description = "4LC: construction, readout and composition of a 4D latent cache"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+dependencies = ["torch"]
+
+[project.urls]
+Repository = "https://github.com/ZGCA-HMI-Lab/4LC"
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["latent_cache*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

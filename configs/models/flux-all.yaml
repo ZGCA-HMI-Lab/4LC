@@ -1,0 +1,19 @@
+model:
+  dit_path: ../../local-assets/models/Wan2.1-T2V-14B
+  architecture: wan21-t2v-14b
+  feature_dims: [128, 128, 512, 512, 512]
+  control_layers: [0, 5, 10, 15, 20, 25, 30, 35]
+  mask_dim: 32
+  camera_dim: 64
+  output_dim: 2048
+  use_motion_mask: false
+encoders:
+  config: ../encoders.yaml
+  representations:
+    rgb: flux2
+    depth: flux2
+    dinov2: dinov2
+    vjepa2: vjepa2
+    wm: wm
+  worldmirror: default
+  wan_model_root: ../../local-assets/models/Wan2.1-T2V-14B

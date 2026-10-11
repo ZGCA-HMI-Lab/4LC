@@ -1,0 +1,75 @@
+from alc_video.training.augmentation.config import (
+    VISIBILITY_CULLING_STRATEGIES,
+    AugmentationConfig,
+    load_augmentation_config,
+)
+from alc_video.training.augmentation.geometry import (
+    VirtualTrajectory,
+    VisibilityCullingResult,
+    apply_visibility_culling,
+    build_visibility_culling,
+    build_visibility_trajectory,
+    focal_probe_v1,
+    lateral_look_at_v1,
+    pitch_pan_v1,
+    yaw_pan_v1,
+)
+from alc_video.training.augmentation.policy import AugmentationExecutor
+from alc_video.training.augmentation.source_drop import (
+    build_source_drop_mask,
+    validate_source_drop_mask,
+)
+from alc_video.training.augmentation.trace import (
+    CONDITION_OPERATOR_IDS,
+    EXECUTABLE_OPERATOR_IDS,
+    FIRST_FRAME_ID,
+    GEOMETRY_OPERATOR_IDS,
+    LATENT_DROP_ID,
+    MOTION_THRESHOLD_ID,
+    PROMPT_DROP_ID,
+    SOURCE_DROP_ID,
+    TRAIN_AUGMENTATION_METRIC_NAMES,
+    TRANSPORT_OPERATOR_IDS,
+    VISIBILITY_CULLING_ID,
+    AugmentationDecision,
+    AugmentationTrace,
+    ConditionDropout,
+)
+from alc_video.training.augmentation.unconditional_context import (
+    load_unconditional_context,
+    write_unconditional_context,
+)
+
+__all__ = [
+    "CONDITION_OPERATOR_IDS",
+    "EXECUTABLE_OPERATOR_IDS",
+    "FIRST_FRAME_ID",
+    "GEOMETRY_OPERATOR_IDS",
+    "LATENT_DROP_ID",
+    "MOTION_THRESHOLD_ID",
+    "PROMPT_DROP_ID",
+    "SOURCE_DROP_ID",
+    "TRAIN_AUGMENTATION_METRIC_NAMES",
+    "TRANSPORT_OPERATOR_IDS",
+    "VISIBILITY_CULLING_ID",
+    "VISIBILITY_CULLING_STRATEGIES",
+    "AugmentationConfig",
+    "AugmentationDecision",
+    "AugmentationExecutor",
+    "AugmentationTrace",
+    "VirtualTrajectory",
+    "VisibilityCullingResult",
+    "apply_visibility_culling",
+    "build_source_drop_mask",
+    "build_visibility_culling",
+    "build_visibility_trajectory",
+    "focal_probe_v1",
+    "lateral_look_at_v1",
+    "load_augmentation_config",
+    "load_unconditional_context",
+    "pitch_pan_v1",
+    "validate_source_drop_mask",
+    "write_unconditional_context",
+    "yaw_pan_v1",
+    "ConditionDropout",
+]

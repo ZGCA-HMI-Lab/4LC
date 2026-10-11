@@ -1,0 +1,47 @@
+4LC third-party notices
+
+Copyright (c) 2026 4LC contributors.
+
+4LC-authored code, including alc_video, is licensed under the root MIT LICENSE.
+The standalone latent_cache library in alc/ is licensed under alc/LICENSE (MIT).
+Third-party source retains its upstream licenses and file-level notices.
+Model weights and datasets retain the terms provided with those assets.
+
+DiffSynth-Studio
+  Directory: third_party/diffsynth/
+  Source: https://github.com/modelscope/DiffSynth-Studio
+  License: Apache-2.0; see third_party/diffsynth/LICENSE.
+
+NeoVerse WorldMirror reconstructor
+  Directory: third_party/worldmirror/
+  Immediate source: https://github.com/IamCreateAI/NeoVerse
+  Upstream path: diffsynth/auxiliary_models/worldmirror/
+  NeoVerse repository license: Apache-2.0; its original license text is in
+  third_party/worldmirror/LICENSE.txt.
+  NeoVerse identifies its released reconstructor as WorldMirror-based and
+  finetuned on 3D/4D datasets. This records the immediate source and its declared
+  repository license; underlying third-party rights and notices remain applicable.
+
+VGGT
+  Directory: third_party/vggt/
+  Source: https://github.com/facebookresearch/vggt
+  License: VGGT License; see third_party/vggt/LICENSE.txt.
+  Files with explicit Apache-2.0 declarations retain those declarations.
+  Model checkpoints have their own terms; see the upstream README.
+
+V-JEPA 2 / V-JEPA 2.1
+  Directory: third_party/vjepa2/
+  Source: https://github.com/facebookresearch/vjepa2
+  License: MIT; see third_party/vjepa2/LICENSE.
+  The upstream README identifies randaugment.py, randerase.py and worker_init_fn.py
+  as Apache-2.0 components; see third_party/vjepa2/APACHE-LICENSE.
+
+Depth Anything V2
+  Directory: third_party/Depth-Anything-V2/
+  Source: https://github.com/DepthAnything/Depth-Anything-V2
+  Source-code license: Apache-2.0; see third_party/Depth-Anything-V2/LICENSE.
+  Model checkpoints have their own terms; see the upstream README.
+
+The license texts listed above are retained as published by their immediate
+upstream repositories. Existing copyright, attribution and component-specific
+license notices within source files are also part of this distribution.

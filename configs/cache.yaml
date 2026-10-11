@@ -1,0 +1,10 @@
+image_size: [336, 560]
+motion_threshold: 0.1
+motion_mask_dilation: 4
+temporal_motion_propagation: true
+temporal_motion_depth_tolerance: 0.1
+same_depth_abs_eps: 0.001
+same_depth_rel_eps: 0.001
+target_chunk_size: 81
+native_resolution: true
+max_projection_window_frames: null

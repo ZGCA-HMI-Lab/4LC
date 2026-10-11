@@ -1,0 +1,3 @@
+# Install the repository root's requirements first.
+gradio==6.14.0
+pillow>=10.1

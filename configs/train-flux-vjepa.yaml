@@ -1,0 +1,49 @@
+runtime:
+  seed: 0
+data:
+  source: spatialvid
+  root: ../data/SpatialVID
+  sample_count: null
+  planning_seed: 0
+model: models/flux-vjepa.yaml
+cache: cache.yaml
+propagate_rgb: false
+augmentation: augmentation.yaml
+training:
+  sample_exposure: 1.6
+  max_updates: null
+  num_workers: 1
+  prefetch_factor: 2
+  shuffle_buffer_size: 1000
+  gradient_accumulation_steps: 1
+  zero_optimizer_offload: none
+  print_freq: 50
+  save_freq: 2000
+  profile_freq: 50
+optimizer:
+  lr: 1.0e-05
+  betas:
+    - 0.9
+    - 0.999
+  weight_decay: 0.01
+  eps: 1.0e-08
+  schedule:
+    type: constant
+  clip_max_norm: 1.0
+  clip_norm_type: 2.0
+logging:
+  tensorboard_enabled: false
+  tensorboard_logdir: tensorboard
+  swanlab_enabled: false
+  swanlab_project: 4lc-video
+  swanlab_experiment_name: pretrain
+  swanlab_workspace: null
+  swanlab_mode: null
+  swanlab_logdir: swanlog
+  train_log_enabled: true
+  train_log_path: train.log
+checkpoint:
+  output_path: ../outputs/training-flux-vjepa
+  resume_from: null
+  initial_weights: null
+  max_to_keep: 2

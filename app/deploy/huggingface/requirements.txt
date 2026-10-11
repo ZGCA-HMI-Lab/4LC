@@ -1,0 +1,33 @@
+--extra-index-url https://download.pytorch.org/whl/cu128
+--find-links https://data.pyg.org/whl/torch-2.8.0+cu128.html
+torch==2.8.0
+torchvision==0.23.0
+torch-scatter==2.1.2
+gsplat==1.5.3
+spaces==0.51.3
+gradio==6.14.0
+nodejs-wheel==24.19.0
+transformers==4.57.6
+diffusers==0.37.1
+peft==0.18.1
+numpy==1.26.4
+omegaconf
+modelscope
+PyYAML
+imageio[ffmpeg]
+safetensors
+einops
+sentencepiece
+protobuf
+ftfy
+pandas
+pillow
+matplotlib
+accelerate
+opencv-python-headless
+scikit-image
+tqdm
+av
+timm
+huggingface_hub
+tomli
