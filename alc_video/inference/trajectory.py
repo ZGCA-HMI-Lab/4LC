@@ -49,6 +49,8 @@ def generate_trajectory(
     intr = source.intr[:1].double().cpu().repeat(frames, 1, 1)
     poses = source.c2w[:1].double().cpu().repeat(frames, 1, 1)
     progress = torch.linspace(0, 1, frames, dtype=torch.float64)
+    if camera.ease:
+        progress = progress.square() * (3 - 2 * progress)
     amount = progress * camera.direction * camera.amount
     start_rotation = poses[0, :3, :3].clone()
     start_position = poses[0, :3, 3].clone()

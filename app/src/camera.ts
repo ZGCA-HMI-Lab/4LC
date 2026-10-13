@@ -26,6 +26,7 @@ export type Motion = {
   preset: CameraPreset;
   direction: -1 | 1;
   amount: number;
+  ease: boolean;
 };
 export const CAMERA_LABELS: Record<CameraPreset, string> = {
   original: "Original path",
@@ -99,6 +100,7 @@ export const INITIAL_MOTION: Motion = {
   preset: "original",
   direction: 1,
   amount: 0.4,
+  ease: false,
 };
 export const usesInputPath = (preset: CameraPreset) =>
   preset === "original" || preset === "offset";
@@ -266,7 +268,8 @@ export function targetCameraAt(
   start: Camera,
 ): Camera {
   const { preset, direction, amount } = motion;
-  const progress = direction * amount * time;
+  const progress =
+    direction * amount * (motion.ease ? time * time * (3 - 2 * time) : time);
   const pose = cameraPose(start);
   switch (preset) {
     case "original":

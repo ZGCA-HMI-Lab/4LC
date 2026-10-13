@@ -9,7 +9,11 @@ SOURCE = Path(__file__).resolve().parent / "source"
 
 if SOURCE.exists():
     subprocess.run(
-        ["git", "-C", str(SOURCE), "pull", "--ff-only", "origin", "main"],
+        ["git", "-C", str(SOURCE), "fetch", "--depth", "1", "origin", "main"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(SOURCE), "reset", "--hard", "FETCH_HEAD"],
         check=True,
     )
 else:

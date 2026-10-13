@@ -1,6 +1,6 @@
 # Latent Cache
 
-**Construct once. Read at new times and viewpoints. Compose observations.** The `latent-cache` library requires Python 3.10+ and PyTorch; callers provide visual encoders, geometry and motion. Video generation and training are covered in the [project README](../README.md#4lc-video).
+The `latent-cache` library constructs a Cache once, reads it at new times and viewpoints, and composes observations. It requires Python 3.10+ and PyTorch; callers provide visual encoders, geometry and motion. Video generation and training are covered in the [project README](../README.md#4lc-video).
 
 ```bash
 # From the repository root
@@ -92,6 +92,9 @@ Depth selection uses `same_depth_abs_eps + same_depth_rel_eps * abs(z)`. A proje
 
 ## Inputs and Encoders
 
+> [!NOTE]
+> Combining stronger models for depth estimation, camera estimation, and motion estimation can further improve the quality of 4LC conditioning.
+
 **Coordinates.** Image sizes are `(H,W)`. Use OpenCV camera axes (x right, y down, z forward), camera-to-world `c2w`, and intrinsics normalized by dividing the first row by W and the second by H. Depth is camera z-depth, velocity is in world units per second, and scene times are in seconds.
 
 B is batch size, K geometry keyframes, M encoder-context frames, T source timeline length, and N requested frames. M equals K when no separate encoder context is supplied.
@@ -106,6 +109,9 @@ B is batch size, K geometry keyframes, M encoder-context frames, T source timeli
 | `fps` | Positive scalar or `[B]` tensor |
 | `encoding_frame_indices` | Optional `[B,M]` int64 source indices for encoder context |
 | `velocity` | Optional forward/backward pair, each `[B,K,H,W,3]` |
+| `motion_mask` | Optional boolean `[B,K,H,W]` initial motion mask; replaces threshold classification |
+
+Estimated and supplied motion masks both undergo configured temporal propagation and spatial dilation, restricted to valid, observed geometry. To reuse an already processed mask unchanged, set `temporal_motion_propagation=False` and `motion_mask_dilation=0`.
 
 Source indices and timeline times increase strictly; `times` equals `timeline_times` gathered at `frame_indices`. Batch items share source and encoder-context indices. Construction tensors use the depth tensor's device. Queries use times `[B,N]` and cameras `[B,N,3,3]` / `[B,N,4,4]` on the entry's device. Query times may pause or reverse while output `frame_indices` increase.
 

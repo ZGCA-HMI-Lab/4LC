@@ -533,14 +533,18 @@ def select_motion(
         or int(source_anchor.shape[1]) == 1
     ):
         unavailable = torch.zeros_like(base_valid)
+        motion_mask = unavailable
+        if source_motion_mask is not None:
+            motion_mask = (
+                _dilate_motion_mask(
+                    base_valid & source_motion_mask, motion_mask_dilation_radius
+                )
+                & base_valid
+            )
         return MotionSelection(
             magnitude=torch.zeros_like(source_depth, dtype=source_anchor.dtype),
-            anchor_mask=base_valid
-            if source_motion_mask is None
-            else base_valid & ~source_motion_mask,
-            motion_mask=unavailable
-            if source_motion_mask is None
-            else base_valid & source_motion_mask,
+            anchor_mask=base_valid & ~motion_mask,
+            motion_mask=motion_mask,
             unresolved_mask=unavailable,
             available_fwd=unavailable,
             available_bwd=unavailable,
@@ -598,19 +602,15 @@ def select_motion(
     )
     observed = available_fwd | available_bwd
     if source_motion_mask is not None:
-        return MotionSelection(
-            magnitude=magnitude,
-            anchor_mask=observed & ~source_motion_mask,
-            motion_mask=observed & source_motion_mask,
-            unresolved_mask=base_valid & ~observed,
-            available_fwd=available_fwd,
-            available_bwd=available_bwd,
+        motion_mask = observed & source_motion_mask
+    else:
+        motion_mask = (
+            available_fwd
+            & (displacement_fwd > threshold * frame_gap_fwd[:, :, None, None])
+        ) | (
+            available_bwd
+            & (displacement_bwd > threshold * frame_gap_bwd[:, :, None, None])
         )
-    motion_mask = (
-        available_fwd & (displacement_fwd > threshold * frame_gap_fwd[:, :, None, None])
-    ) | (
-        available_bwd & (displacement_bwd > threshold * frame_gap_bwd[:, :, None, None])
-    )
     anchor_mask = observed & ~motion_mask
     unresolved_mask = base_valid & ~observed
     expandable_anchor = anchor_mask

@@ -320,10 +320,10 @@ input[type="range"]:active::-moz-range-thumb {
   align-items: center;
   color: var(--brand);
 }
-.brand strong {
-  font-size: 26px;
-  font-weight: 700;
-  letter-spacing: -1px;
+.brand img {
+  display: block;
+  width: 60px;
+  height: 28px;
 }
 .toolbar-links {
   display: flex;

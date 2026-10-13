@@ -1,0 +1,20 @@
+description: Reverse a man's walk across a living room using the original camera path.
+source:
+  dataset: Pexels
+  id: "7614413"
+  url: https://www.pexels.com/video/7614413/
+  clip: [0.5, 5.5]
+  preparation: Source video at 640 x 360; prepare selects the original 0.5-5.5 s interval and center crop used for generation.
+task: temporal
+input: input.mp4
+model: flux-all
+prompt: A man looking at his phone walking backwards across a minimalist living room past a grey sofa toward the door, reverse motion.
+prepare:
+  start: 0.5
+  sampling_fps: 16
+  crop: [20, 0, 600, 360]
+cache:
+  num_keyframes: 21
+  motion_threshold: 0.1
+camera: {preset: original}
+time: {mode: reverse}

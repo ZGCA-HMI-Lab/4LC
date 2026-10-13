@@ -1,0 +1,15 @@
+description: Move through a red arch into a garden, using the first segment of the project website's Red arch garden example.
+source:
+  dataset: Pexels
+  id: "1189215"
+  url: https://www.pexels.com/photo/1189215/
+  license: Pexels License
+  license_url: https://www.pexels.com/license/
+  preparation: Reuses the website's 560 x 336 generation input, prepared from the 1280 x 863 source image.
+task: nvs
+input: input.jpg
+model: flux-all
+prompt: An arch in a red wall opening onto a garden path lined with hedges.
+prepare:
+  crop: [0, 0, 560, 336]
+camera: {preset: dolly, direction: in, amount: 1.2, ease: false}

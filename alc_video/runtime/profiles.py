@@ -10,7 +10,7 @@ from alc_video.utils.config import (
     reject_unknown_fields,
 )
 
-DEFAULT_MODEL = Path(__file__).resolve().parents[2] / "configs/models/flux-vjepa.yaml"
+DEFAULT_MODEL = Path(__file__).resolve().parents[2] / "configs/models/flux-all.yaml"
 MODEL_PATH_FIELDS = ("model.dit_path", "encoders.config", "encoders.wan_model_root")
 
 

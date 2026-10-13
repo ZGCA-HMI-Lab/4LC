@@ -1,0 +1,22 @@
+description: Move the camera toward a pottery wheel while preserving the observed motion.
+source:
+  dataset: Pexels
+  id: "5564300"
+  url: https://www.pexels.com/video/woman-doing-pottery-5564300/
+  author: Anastasia Shuraeva
+  author_url: https://www.pexels.com/@anastasia-shuraeva/
+  license: Pexels License
+  license_url: https://www.pexels.com/license/
+  preparation: Existing 81-frame clip, cropped and resized to 560 x 336 at 16 fps; the original clip start was not recorded.
+task: spatial
+input: input.mp4
+model: flux-all
+prompt: Hands shaping a clay cup on a pottery wheel in a warm studio.
+prepare:
+  start: 0
+  sampling_fps: 16
+cache:
+  num_keyframes: 21
+  motion_threshold: 0.1
+camera: {preset: dolly, direction: in, amount: 0.6, ease: true}
+time: {mode: normal}

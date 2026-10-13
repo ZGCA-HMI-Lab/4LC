@@ -1,0 +1,20 @@
+description: Explore a colonnaded courtyard in three segments, then retrace the camera path using Cache history.
+source:
+  dataset: Pexels
+  id: "30952470"
+  url: https://www.pexels.com/photo/30952470/
+  preparation: Source image at 1280 x 851; prepare retains the crop used for generation.
+task: rollout
+input: input.jpg
+model: flux-all
+prompt: A sunlit courtyard surrounded by a colonnade with arches.
+prepare:
+  crop: [0, 42, 1280, 768]
+cache:
+  num_keyframes: 21
+  motion_threshold: 0.1
+actions:
+  - {preset: dolly, direction: in, amount: 0.4, chunks: 1}
+  - {preset: orbit, direction: left, amount: 0.3, chunks: 1}
+  - {preset: orbit, direction: left, amount: 0.3, chunks: 1}
+revisit: true

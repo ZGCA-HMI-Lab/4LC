@@ -14,7 +14,7 @@ from alc_video.utils.config import read_yaml, reject_unknown_fields
 
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp"}
 VIDEO_SUFFIXES = {".mp4", ".webm", ".mov", ".mkv"}
-TASKS = ("spatial", "temporal", "nvs", "rollout")
+TASKS = ("spatial", "temporal", "nvs", "i2v", "rollout")
 
 
 def media_kind(path: Path) -> Literal["image", "video"]:
@@ -65,6 +65,8 @@ class ExampleCase:
 
     @property
     def mode(self) -> str:
+        if self.task == "i2v":
+            return "i2v"
         return "control" if self.source.type == "video" else "geometry_i2v"
 
 
@@ -76,14 +78,23 @@ def load_example(path: str | Path) -> ExampleCase:
     task = raw.get("task")
     if task not in TASKS:
         raise ValueError(f"task={task!r}; choose one of {TASKS}")
-    allowed = {"task", "input", "model", "prompt", "prepare", "cache"}
+    allowed = {
+        "description",
+        "source",
+        "task",
+        "input",
+        "model",
+        "prompt",
+        "prepare",
+        "cache",
+    }
     allowed |= {"actions", "revisit"} if task == "rollout" else {"camera", "time"}
     reject_unknown_fields(raw, allowed)
     if not isinstance(raw.get("input"), str):
         raise ValueError("input must name the case's image or video file")
     input_path = (path.parent / Path(raw["input"]).expanduser()).resolve()
     kind = media_kind(input_path)
-    expected = "image" if task in ("nvs", "rollout") else "video"
+    expected = "image" if task in ("nvs", "i2v", "rollout") else "video"
     if kind != expected:
         raise ValueError(
             f"task={task!r} requires {expected} input, got {input_path.name}"

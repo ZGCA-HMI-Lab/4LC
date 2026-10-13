@@ -336,7 +336,12 @@ def inference_request(args: argparse.Namespace) -> InferenceRequest:
         output=_path(args.output),
         camera=camera,
         time=time,
-        mode=args.mode or ("geometry_i2v" if source.type == "image" else "control"),
+        mode=args.mode
+        or (
+            example.mode
+            if example
+            else ("geometry_i2v" if source.type == "image" else "control")
+        ),
         num_keyframes=args.num_keyframes
         if args.num_keyframes is not None
         else (

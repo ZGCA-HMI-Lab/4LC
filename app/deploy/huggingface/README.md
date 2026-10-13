@@ -13,7 +13,7 @@ license: mit
 fullWidth: true
 ---
 
-# 4LC interactive demo
+<h1><img src="https://raw.githubusercontent.com/ZGCA-HMI-Lab/4LC/main/assets/readme/4lc.svg" width="77" height="36" style="display: inline-block; vertical-align: middle; margin: 0;" alt="4LC"> interactive demo</h1>
 
 Build a 4D Latent Cache from a video or image, explore camera and time controls, preview conditions, and generate a video.
 

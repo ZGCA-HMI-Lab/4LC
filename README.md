@@ -1,4 +1,4 @@
-<h2 align="center">4LC: 4D Latent Cache for Efficient Conditioning in Dynamic World Modeling</h2>
+<h2 align="center"><img src="assets/readme/4lc.svg" width="60" height="28" alt="4LC">: 4D Latent Cache for Efficient Conditioning in Dynamic World Modeling</h2>
 
 <div align="center">
 
@@ -6,17 +6,15 @@ Jianhui Zhang<sup>1,2</sup> &nbsp; Zuyao Lin<sup>3,2</sup> &nbsp; Pengxin Xu<sup
 
 <sub><sup>1</sup> SJTU · <sup>2</sup> ZGCA · <sup>3</sup> CASIA · <sup>4</sup> HIT &emsp; ✉&nbsp;Equal&nbsp;advising</sub>
 
-<!-- TODO: replace XXXX.XXXXX with the final arXiv identifier throughout this file. -->
 <p>
-  <a href="https://arxiv.org/abs/XXXX.XXXXX"><img src="https://img.shields.io/badge/arXiv-Paper-B31B1B?style=flat&amp;logo=arxiv&amp;logoColor=white&amp;labelColor=454545" height="22" alt="Paper"></a>
+  <a href="https://arxiv.org/abs/2610.17625"><img src="https://img.shields.io/badge/arXiv-Paper-B31B1B?style=flat&amp;logo=arxiv&amp;logoColor=white&amp;labelColor=454545" height="22" alt="Paper"></a>
   <a href="https://zgca-hmi-lab.github.io/4LC/"><img src="https://img.shields.io/badge/Project-Page-0F766E?style=flat&amp;labelColor=454545" height="22" alt="Project page"></a>
   <a href="https://huggingface.co/jianhuizhang/4LC-Video"><img src="https://img.shields.io/badge/Hugging_Face-Models-FFD21E?style=flat&amp;logo=huggingface&amp;logoColor=FFD21E&amp;labelColor=454545" height="22" alt="Models"></a>
   <a href="https://huggingface.co/spaces/jianhuizhang/4LC-Demo"><img src="https://img.shields.io/badge/Spaces-Demo-0284C7?style=flat&amp;logo=huggingface&amp;logoColor=FFD21E&amp;labelColor=454545" height="22" alt="Demo"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-64748B?style=flat&amp;labelColor=454545" height="22" alt="License: MIT"></a>
 </p>
 
-<!-- Main visual: replace this teaser with the project video when available. -->
-<p><img src="assets/readme/teaser.png" width="100%" alt="4LC: construction, spatiotemporal readout and video generation"></p>
+https://github.com/user-attachments/assets/48da17c0-5f50-49cd-83cc-b251b1f1aad6
 
 <p><strong>4LC caches visual representations of static and dynamic content for reuse across times and viewpoints.</strong></p>
 
@@ -24,7 +22,9 @@ Jianhui Zhang<sup>1,2</sup> &nbsp; Zuyao Lin<sup>3,2</sup> &nbsp; Pengxin Xu<sup
 
 </div>
 
-<!-- News: add a heading and dated announcements when releases are available. -->
+## News
+
+- **2026-10-14**: Our [paper](https://arxiv.org/abs/2610.17625) is now available on arXiv. Code, [model weights](https://huggingface.co/jianhuizhang/4LC-Video) and the [interactive demo](https://huggingface.co/spaces/jianhuizhang/4LC-Demo) are publicly available.
 
 ## Latent Cache
 
@@ -66,7 +66,9 @@ background = history.readouts
 
 ### Installation
 
-**Environment and PyTorch** — Linux, Python 3.10, PyTorch 2.6.0 / CUDA 12.4. Video inference and training have been tested on an A100 80 GB.
+**Environment and PyTorch**
+
+Linux, Python 3.10, PyTorch 2.6.0 / CUDA 12.4. Video inference and training have been tested on an A100 80 GB.
 
 Run from the repository root:
 
@@ -104,8 +106,8 @@ Both profiles use **Wan2.1-T2V-14B**. Choose a profile and its matching learned 
 
 | Profile | Cached representations | Weights |
 | :--- | :--- | :--- |
-| [flux-vjepa](configs/models/flux-vjepa.yaml) (default) | RGB / depth / V-JEPA 2.1 | [Download](https://huggingface.co/jianhuizhang/4LC-Video/resolve/main/4lc-video-flux-vjepa.safetensors) |
-| [flux-all](configs/models/flux-all.yaml) | RGB / depth / DINOv2 / V-JEPA 2.1 / WorldMirror | [Download](https://huggingface.co/jianhuizhang/4LC-Video/resolve/main/4lc-video-flux-all.safetensors) |
+| [flux-all](configs/models/flux-all.yaml) (default) | RGB / depth / DINOv2 / V-JEPA 2.1 / WorldMirror | [Download](https://huggingface.co/jianhuizhang/4LC-Video/resolve/main/4lc-video-flux-all.safetensors) |
+| [flux-vjepa](configs/models/flux-vjepa.yaml) | RGB / depth / V-JEPA 2.1 | [Download](https://huggingface.co/jianhuizhang/4LC-Video/resolve/main/4lc-video-flux-vjepa.safetensors) |
 
 Download the weights to the default location:
 
@@ -115,7 +117,7 @@ hf download jianhuizhang/4LC-Video \
   --local-dir local-assets/models
 ```
 
-`--model` selects the profile; `--weights` overrides the learned-weight path. The supplied video encoders operate at **336 × 560**.
+`--model` overrides the example's profile; without either, inference uses `flux-all`. `--weights` overrides the learned-weight path. The supplied video encoders operate at **336 × 560**.
 
 <details>
 <summary><b>Download base models and place encoder assets</b></summary>
@@ -157,7 +159,7 @@ local-assets/models/
 | [cache.yaml](configs/cache.yaml) | Motion classification, projection and readout batching |
 | [encoders.yaml](configs/encoders.yaml) | Encoder backends, asset paths and encoding batch sizes |
 | [Model profiles](configs/models) | Ordered representation bindings, adapter and control-branch structure |
-| [Training profiles](configs/train-flux-vjepa.yaml) | Data, optimizer, updates, checkpoints and shared configuration references |
+| [Training profiles](configs/train-flux-all.yaml) | Data, optimizer, updates, checkpoints and shared configuration references |
 | [augmentation.yaml](configs/augmentation.yaml) | Training augmentation and unconditional context |
 
 Keep the representation bindings and model structure consistent with the chosen checkpoint. YAML paths are relative to the declaring file; CLI paths are relative to the working directory. Training `--set` overrides apply after model and Cache references are loaded.
@@ -178,14 +180,33 @@ The input type and default mode are inferred from the file. Both image modes use
 
 Each directory under `examples/` contains its input and an `example.yaml`. The CLI and [App](app/README.md) load the same input preparation, model and shot settings:
 
+| Example | Input and control | Entry point |
+| :--- | :--- | :--- |
+| [spatial-control](examples/spatial-control/example.yaml) | Pottery video; dolly in | CLI and App |
+| [temporal-control](examples/temporal-control/example.yaml) | Living-room video; reverse a man's walk along the original camera path | CLI and App |
+| [image-geometry](examples/image-geometry/example.yaml) | Red arch garden image; geometry-guided dolly in matching the first segment shown on the project website | CLI and App |
+| [image-first-frame](examples/image-first-frame/example.yaml) | Violinist image; animate the performance with first-frame conditioning | CLI and App |
+| [image-rollout](examples/image-rollout/example.yaml) | Courtyard image; three camera actions followed by a return path | Rollout CLI |
+
+All five use `flux-all`, seed **0** and **4** LightX2V sampling steps. The YAML files retain the source preparation and camera/time settings; inference prepares **560 × 336** frames at **16 fps**.
+
 ```bash
 python scripts/infer.py --example examples/spatial-control --output outputs/control.mp4
-python scripts/infer.py --example examples/nvs --output outputs/nvs.mp4
+python scripts/infer.py --example examples/temporal-control --output outputs/temporal.mp4
+python scripts/infer.py --example examples/image-geometry --output outputs/image-geometry.mp4
+python scripts/infer.py --example examples/image-first-frame --output outputs/image-first-frame.mp4
 ```
 
 **Control your own video**
 
-The full input span is sampled to **81 frames**, keeping its duration. `--num-keyframes` selects **11, 21, 41 or 81** source keyframes for the Cache (default: **21**). More keyframes can reduce motion trails and improve generation quality, with higher construction cost and GPU memory use. `--start` selects the beginning in seconds; `--sampling-fps` sets the spacing, so the end is `start + 80 / sampling_fps`. Without a sampling rate, the remaining video is used. `--crop X Y W H` selects source pixels; otherwise a centered crop matches the model's aspect ratio. The shared input processor then resizes to the configured resolution.
+The selected span is sampled to **81 frames** and resized to the model resolution.
+
+| Option | Effect |
+| :--- | :--- |
+| `--num-keyframes` | Source keyframes for the Cache: 11, **21** (default), 41 or 81. More keyframes can reduce motion trails and improve quality, at higher construction cost and GPU memory |
+| `--start` | Start time in seconds |
+| `--sampling-fps` | Frame spacing; the span ends at `start + 80 / sampling_fps`. Without it, the rest of the video is used |
+| `--crop X Y W H` | Source pixels to keep; default is a centered crop at the model's aspect ratio |
 
 ```bash
 python scripts/infer.py --input path/to/video.mp4 \
@@ -204,7 +225,7 @@ Choose `geometry_i2v` to guide each target view with reconstructed geometry. `i2
 python scripts/infer.py --input path/to/image.png --mode geometry_i2v \
   --camera orbit --direction right --amount 0.3 \
   --prompt "A smooth camera move through the scene." \
-  --output outputs/nvs.mp4
+  --output outputs/image-geometry.mp4
 ```
 
 <details>
@@ -225,7 +246,7 @@ CLI presets start from the input's first estimated camera. The App also lets you
 | `tilt` | Up / down | Tilt 45° in place |
 | `orbit` | Left / right | Orbit 90° around a pivot D ahead of the starting camera |
 
-The default direction is right, in or up for the selected preset. `original` and `offset` require video input. CLI and browser implementations use the same camera conventions and preset definitions.
+The default direction is right, in or up for the selected preset. `original` and `offset` require video input.
 
 </details>
 
@@ -234,15 +255,11 @@ The default direction is right, in or up for the selected preset. `original` and
 Rollout starts from **one image** and generates 81-frame windows. Each window shares its first frame with the previous one; N windows produce **80 × N + 1 frames**. Cache history is enabled by default and uses `geometry_i2v`.
 
 ```bash
-# One outgoing window followed by the exact return path: 161 frames.
-python scripts/rollout.py --input path/to/image.png \
-  --camera dolly --direction in --amount 0.3 --revisit \
-  --output outputs/revisit.mp4
-
-# Multi-action exploration defined by a case.
-python scripts/rollout.py --example examples/exploration \
-  --output outputs/exploration.mp4
+python scripts/rollout.py --example examples/image-rollout \
+  --output outputs/image-rollout.mp4
 ```
+
+The bundled courtyard example uses three 81-frame actions: dolly in (`0.4`), orbit left (`0.3`), then orbit left (`0.3`), followed by the exact return path. Shared boundary frames yield **481 frames** in total.
 
 For a single action, `--chunks` sets its number of windows. **Amount is the total change over that action**, so more windows extend its duration. A multi-action case carries each final camera pose and lens into the next action. `revisit: true` appends the exact reversed camera path and doubles the window count. The initial scene scale remains fixed throughout the route.
 
@@ -261,31 +278,38 @@ examples/
 A video case:
 
 ```yaml
-task: spatial                    # spatial, temporal, nvs or rollout
+description: Move the camera toward a pottery wheel.
+source:                          # provenance of the bundled input
+  dataset: Pexels
+  id: "5564300"
+  url: https://www.pexels.com/video/5564300/
+task: spatial                    # spatial, temporal, nvs, i2v or rollout
 input: input.mp4                  # relative to this file
-model: flux-vjepa                 # profile name, or a relative model YAML path
-prompt: A continuous shot with natural motion.
+model: flux-all                   # profile name, or a relative model YAML path
+prompt: Hands shaping a clay cup on a pottery wheel in a warm studio.
 prepare:                         # optional; omitted values use full-span / centered-crop defaults
   start: 0
   sampling_fps: 16
 cache:                           # optional Cache construction settings
   num_keyframes: 21               # 11, 21, 41 or 81
   motion_threshold: 0.1           # 0–1; lower values classify more content as moving
-camera: {preset: offset, direction: left, amount: 0.3}
+camera: {preset: dolly, direction: in, amount: 0.6, ease: true}
 time: {mode: normal}              # freeze uses at: <seconds>; reverse reads time backwards
 ```
 
-For NVS, use `task: nvs`, an image input and a camera move or `fixed`. Images have no source time controls. A rollout case uses `actions` in place of `camera` and `time`:
+`description` and `source` record provenance and do not affect inference; `source` may also hold the original `clip: [start, end]` in seconds, author and license. `prepare` selects frames and a crop from the bundled input. `camera.ease: true` uses smoothstep progress for a gentle start and stop; the pottery and violinist examples use this curve, while the red arch garden example and rollout actions are linear.
+
+For geometry-guided NVS, use `task: nvs`, an image input and a camera move or `fixed`. Use `task: i2v` for first-frame-only image conditioning. Images have no source time controls. A rollout case uses `actions` in place of `camera` and `time`:
 
 ```yaml
 task: rollout
-input: input.png
-model: flux-vjepa
-prompt: A smooth exploration of the scene.
+input: input.jpg
+model: flux-all
+prompt: A sunlit courtyard surrounded by a colonnade with arches.
 actions:
-  - {preset: dolly, direction: in, amount: 0.3, chunks: 1}
-  - {preset: pan, direction: right, amount: 0.3, chunks: 1}
-  - {preset: dolly, direction: in, amount: 0.3, chunks: 1}
+  - {preset: dolly, direction: in, amount: 0.4, chunks: 1}
+  - {preset: orbit, direction: left, amount: 0.3, chunks: 1}
+  - {preset: orbit, direction: left, amount: 0.3, chunks: 1}
 revisit: true
 ```
 
@@ -327,13 +351,13 @@ local-assets/augmentation/wan21-unconditional-context.safetensors
 
 | Profile | Output directory |
 | :--- | :--- |
-| [train-flux-vjepa.yaml](configs/train-flux-vjepa.yaml) | `outputs/training-flux-vjepa/` |
 | [train-flux-all.yaml](configs/train-flux-all.yaml) | `outputs/training-flux-all/` |
+| [train-flux-vjepa.yaml](configs/train-flux-vjepa.yaml) | `outputs/training-flux-vjepa/` |
 
 One-GPU training with CPU optimizer offload:
 
 ```bash
-python scripts/train.py --config configs/train-flux-vjepa.yaml \
+python scripts/train.py --config configs/train-flux-all.yaml \
   --gpus 1 --set training.zero_optimizer_offload=cpu
 ```
 
@@ -345,16 +369,16 @@ Set `--gpus` for multi-GPU training. Override fields with repeated `--set`, such
 `checkpoint.initial_weights` initializes the learned adapter and control branch. `checkpoint.resume_from` restores model, optimizer, scheduler, RNG and data-reader state:
 
 ```bash
-python scripts/train.py --config configs/train-flux-vjepa.yaml \
+python scripts/train.py --config configs/train-flux-all.yaml \
   --gpus 1 --set training.zero_optimizer_offload=cpu \
-  --set checkpoint.resume_from=outputs/training-flux-vjepa/latest
+  --set checkpoint.resume_from=outputs/training-flux-all/latest
 ```
 
 Export the learned weights for inference:
 
 ```bash
-python scripts/export_model.py outputs/training-flux-vjepa/latest \
-  --output outputs/releases/4lc-video-flux-vjepa.safetensors
+python scripts/export_model.py outputs/training-flux-all/latest \
+  --output outputs/releases/4lc-video-flux-all.safetensors
 ```
 
 Pass the exported file to inference with `--weights`, using the same model profile as training.
@@ -365,14 +389,13 @@ Pass the exported file to inference with `--weights`, using the same model profi
 
 If you find our library, code, or paper useful in your research, please cite our work:
 
-<!-- TODO: replace XXXX.XXXXX with the final arXiv identifier. -->
 ```bibtex
 @article{zhang2026fourlc,
   title   = {{4LC}: {4D} Latent Cache for Efficient Conditioning
              in Dynamic World Modeling},
   author  = {Zhang, Jianhui and Lin, Zuyao and Xu, Pengxin
              and Wang, Jingdong and Chen, Xingyu},
-  journal = {arXiv preprint arXiv:XXXX.XXXXX},
+  journal = {arXiv preprint arXiv:2610.17625},
   year    = {2026}
 }
 ```

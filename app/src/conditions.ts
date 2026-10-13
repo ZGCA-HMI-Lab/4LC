@@ -84,6 +84,7 @@ export function conditionKey(settings: ConditionSettings): string {
     settings.image ? settings.imageMode : null,
     motion.preset,
     adjustable ? [motion.direction, motion.amount] : null,
+    adjustable && !usesInputPath(motion.preset) ? motion.ease : null,
     usesInputPath(motion.preset)
       ? null
       : [

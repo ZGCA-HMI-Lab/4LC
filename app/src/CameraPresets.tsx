@@ -38,13 +38,17 @@ export default function CameraPresets({
           aria-label="Camera motion"
           value={motion.preset}
           disabled={disabled}
-          onChange={(event) =>
+          onChange={(event) => {
+            const preset = event.target.value as CameraPreset;
             onChange({
               ...motion,
-              preset: event.target.value as CameraPreset,
+              preset,
+              amount: ["dolly", "truck", "pedestal"].includes(preset)
+                ? motion.amount
+                : Math.min(motion.amount, 1),
               direction: 1,
-            })
-          }
+            });
+          }}
         >
           {!image && (
             <optgroup label="Based on input">
@@ -94,7 +98,7 @@ export default function CameraPresets({
               type="range"
               aria-label="Motion amount"
               min="0"
-              max="100"
+              max={["dolly", "truck", "pedestal"].includes(motion.preset) ? 200 : 100}
               value={Math.round(motion.amount * 100)}
               disabled={disabled}
               onChange={(event) =>

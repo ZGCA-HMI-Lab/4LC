@@ -36,6 +36,7 @@ class CameraControl:
     preset: str = "original"
     direction: int = 1
     amount: float = 0.4
+    ease: bool = False
 
     @classmethod
     def parse(
@@ -54,7 +55,10 @@ class CameraControl:
                 f"{name}.direction={direction!r}; {preset} uses {negative!r} or {positive!r}"
             )
         result = cls(
-            preset, -1 if direction == negative else 1, float(value.get("amount", 0.4))
+            preset,
+            -1 if direction == negative else 1,
+            float(value.get("amount", 0.4)),
+            value.get("ease", False),
         )
         result.validate()
         return result
@@ -66,7 +70,11 @@ class CameraControl:
             )
         if self.direction not in (-1, 1):
             raise ValueError("camera.direction must be -1 or 1")
-        if not math.isfinite(self.amount) or not 0 <= self.amount <= 1:
+        if not math.isfinite(self.amount) or self.amount < 0:
+            raise ValueError(
+                f"camera.amount={self.amount}; use a nonnegative finite value"
+            )
+        if self.preset not in ("dolly", "truck", "pedestal") and self.amount > 1:
             raise ValueError(f"camera.amount={self.amount}; use a value from 0 to 1")
         if image and self.preset in ("original", "offset"):
             raise ValueError(
@@ -109,7 +117,7 @@ class RolloutAction:
     @classmethod
     def parse(cls, value: dict[str, Any], *, name: str) -> RolloutAction:
         reject_unknown_fields(
-            value, ("preset", "direction", "amount", "chunks"), name=name
+            value, ("preset", "direction", "amount", "ease", "chunks"), name=name
         )
         camera = CameraControl.parse(
             {k: v for k, v in value.items() if k != "chunks"},

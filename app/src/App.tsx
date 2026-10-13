@@ -591,7 +591,7 @@ export default function App() {
     <div className="app-shell" id="top">
       <header className="app-toolbar">
         <a className="brand" href="#top" aria-label="4LC workspace">
-          <strong>4LC</strong>
+          <img src="./4lc.svg" alt="4LC" width="60" height="28" />
         </a>
         <div className="toolbar-links">
           <button
@@ -608,7 +608,7 @@ export default function App() {
             className="github-link"
             href="https://github.com/ZGCA-HMI-Lab/4LC"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             aria-label="GitHub"
           >
             <img src="./github.svg" alt="" width="24" height="24" />

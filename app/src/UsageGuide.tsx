@@ -228,7 +228,7 @@ export default function UsageGuide({ onClose }: { onClose: () => void }) {
           <a
             href="https://github.com/ZGCA-HMI-Lab/4LC"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
           >
             code repository
           </a>.

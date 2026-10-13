@@ -1,0 +1,13 @@
+description: Animate a violinist from a single image using first-frame conditioning.
+source:
+  dataset: Pexels
+  id: "6192163"
+  url: https://www.pexels.com/photo/6192163/
+  preparation: Source image at 1280 x 853; prepare retains the crop used for generation.
+task: i2v
+input: input.jpg
+model: flux-all
+prompt: A man playing the violin in front of a lush plant wall, moving the bow expressively.
+prepare:
+  crop: [0, 43, 1280, 768]
+camera: {preset: dolly, direction: in, amount: 0.2, ease: true}
