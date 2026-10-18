@@ -13,6 +13,7 @@ from alc_video.inference.media import InputSettings, inspect_media
 from server.comparison import Comparison, compose_comparison
 from server.conditioning import Shot
 from server.examples import discover_examples
+from server.logging import operation, timing_summary
 from server.media import encode_video
 from server.runtime import BuiltCache, CacheRuntime
 from server.scene import SceneAsset, export_scene
@@ -152,54 +153,65 @@ def create_app(runtime: CacheRuntime, *, gpu=None) -> FastAPI:
             same_input
             and previous.construction.num_keyframes == construction.num_keyframes
         )
-        if reusing_features and previous.construction == construction:
+        with operation(
+            "cache.build",
+            session=session_id[:8],
+            input=media.kind,
+            keyframes=1 if media.kind == "image" else construction.num_keyframes,
+            motion_threshold=construction.motion_threshold,
+        ) as summary:
+            if reusing_features and previous.construction == construction:
+                summary["reuse"] = "cache"
+                return {
+                    **previous.summary(session_id),
+                    "profiles": list(runtime.profiles),
+                }, session_id
+            if reusing_features:
+                summary["reuse"] = "geometry+features"
+                result = update_motion(
+                    previous.cache, construction.motion_threshold, progress
+                )
+            else:
+                progress(None, desc="input.decode")
+                prepared = runtime.prepare(media, input_values)
+                result = compute(prepared, construction, progress)
+            progress(None, desc="scene.pack")
+            packed_at = perf_counter()
+            scene = export_scene(result.entry, result.colors)
+            result.timings["scene.pack"] = perf_counter() - packed_at
+            if same_input:
+                input_video = previous.input_video
+            else:
+                progress(None, desc="input.encode_video")
+                input_start = perf_counter()
+                input_frames = (
+                    prepared.frames.permute(0, 2, 3, 1)
+                    .mul(255)
+                    .round()
+                    .clamp(0, 255)
+                    .byte()
+                )
+                if prepared.kind == "image":
+                    input_frames = input_frames.expand(result.frame_count, -1, -1, -1)
+                input_video = encode_video(input_frames, result.fps)
+                result.timings["input.encode_video"] = perf_counter() - input_start
+            result.timings["processing.total"] = perf_counter() - start
+            session = Session(
+                result,
+                scene,
+                input_video,
+                construction,
+                media.path,
+                input_settings,
+                pca=previous.pca if reusing_features else {},
+            )
+            sessions[session_id] = session
+            summary.update(timing_summary(result.timings))
+            summary["scene_mib"] = f"{len(scene.data) / (1024 * 1024):.1f}"
             return {
-                **previous.summary(session_id),
+                **session.summary(session_id),
                 "profiles": list(runtime.profiles),
             }, session_id
-        if reusing_features:
-            result = update_motion(
-                previous.cache, construction.motion_threshold, progress
-            )
-        else:
-            progress(None, desc="input.decode")
-            prepared = runtime.prepare(media, input_values)
-            result = compute(prepared, construction, progress)
-        progress(None, desc="scene.pack")
-        packed_at = perf_counter()
-        scene = export_scene(result.entry, result.colors)
-        result.timings["scene.pack"] = perf_counter() - packed_at
-        if same_input:
-            input_video = previous.input_video
-        else:
-            progress(None, desc="input.encode_video")
-            input_start = perf_counter()
-            input_frames = (
-                prepared.frames.permute(0, 2, 3, 1)
-                .mul(255)
-                .round()
-                .clamp(0, 255)
-                .byte()
-            )
-            if prepared.kind == "image":
-                input_frames = input_frames.expand(result.frame_count, -1, -1, -1)
-            input_video = encode_video(input_frames, result.fps)
-            result.timings["input.encode_video"] = perf_counter() - input_start
-        result.timings["processing.total"] = perf_counter() - start
-        session = Session(
-            result,
-            scene,
-            input_video,
-            construction,
-            media.path,
-            input_settings,
-            pca=previous.pca if reusing_features else {},
-        )
-        sessions[session_id] = session
-        return {
-            **session.summary(session_id),
-            "profiles": list(runtime.profiles),
-        }, session_id
 
     def cache_info(state: str | None):
         if state not in sessions:
@@ -248,22 +260,31 @@ def create_app(runtime: CacheRuntime, *, gpu=None) -> FastAPI:
         shot = Shot.parse(value, session.cache)
         if shot.profile not in runtime.profiles:
             raise gr.Error(f"Model profile {shot.profile!r} is not loaded.")
-        retained = matching_preview(session, shot)
-        if retained is not None:
-            sessions[state] = replace(
-                session, preview=retained, conditions=retained.condition
+        with operation(
+            "conditions.preview",
+            session=state[:8],
+            model=shot.profile,
+            mode=shot.mode,
+        ) as summary:
+            retained = matching_preview(session, shot)
+            if retained is not None:
+                sessions[state] = replace(
+                    session, preview=retained, conditions=retained.condition
+                )
+                summary["reuse"] = "preview"
+                return retained.summary(state)
+            existing = (
+                session.conditions.readouts
+                if session.conditions and session.conditions.shot.matches(shot)
+                else None
             )
-            return retained.summary(state)
-        existing = (
-            session.conditions.readouts
-            if session.conditions and session.conditions.shot.matches(shot)
-            else None
-        )
-        preview, pca = make_preview(session, shot, progress, existing)
-        sessions[state] = replace(
-            session, preview=preview, pca=pca, conditions=preview.condition
-        )
-        return preview.summary(state)
+            summary["reuse"] = "conditions" if existing is not None else "none"
+            preview, pca = make_preview(session, shot, progress, existing)
+            sessions[state] = replace(
+                session, preview=preview, pca=pca, conditions=preview.condition
+            )
+            summary.update(timing_summary(preview.timings))
+            return preview.summary(state)
 
     def generate_video(value, prompt, state, progress=tracker):
         if state not in sessions:
@@ -275,34 +296,43 @@ def create_app(runtime: CacheRuntime, *, gpu=None) -> FastAPI:
             raise gr.Error(f"Model profile {shot.profile!r} is not loaded.")
         if not isinstance(prompt, str):
             raise gr.Error("Prompt must be text.")
-        candidates = (
-            session.conditions,
-            session.preview.condition if session.preview else None,
-        )
-        existing = next(
-            (item for item in candidates if item and item.shot.matches(shot)), None
-        )
-        readouts = existing.readouts if existing else None
-        frames, conditions, timings = generate_frames(
-            session.cache, shot, prompt, readouts, progress
-        )
-        progress(None, desc="video.encode")
-        encode_start = perf_counter()
-        data = encode_video(frames, session.cache.fps)
-        timings["video.encode"] = perf_counter() - encode_start
-        timings["processing.total"] = perf_counter() - start
-        matching_preview = (
-            session.preview
-            if session.preview and session.preview.condition.shot.matches(shot)
-            else None
-        )
-        result = GeneratedVideo(
-            data, timings, ConditionResult(shot, conditions), matching_preview
-        )
-        sessions[state] = replace(
-            session, video=result, conditions=ConditionResult(shot, conditions)
-        )
-        return result.summary(state)
+        with operation(
+            "video.generate",
+            session=state[:8],
+            model=shot.profile,
+            mode=shot.mode,
+            frames=session.cache.frame_count,
+        ) as summary:
+            candidates = (
+                session.conditions,
+                session.preview.condition if session.preview else None,
+            )
+            existing = next(
+                (item for item in candidates if item and item.shot.matches(shot)), None
+            )
+            readouts = existing.readouts if existing else None
+            summary["reuse"] = "conditions" if existing is not None else "none"
+            frames, conditions, timings = generate_frames(
+                session.cache, shot, prompt, readouts, progress
+            )
+            progress(None, desc="video.encode")
+            encode_start = perf_counter()
+            data = encode_video(frames, session.cache.fps)
+            timings["video.encode"] = perf_counter() - encode_start
+            timings["processing.total"] = perf_counter() - start
+            matching_preview = (
+                session.preview
+                if session.preview and session.preview.condition.shot.matches(shot)
+                else None
+            )
+            result = GeneratedVideo(
+                data, timings, ConditionResult(shot, conditions), matching_preview
+            )
+            sessions[state] = replace(
+                session, video=result, conditions=ConditionResult(shot, conditions)
+            )
+            summary.update(timing_summary(timings))
+            return result.summary(state)
 
     def prepare_comparison(state, progress=tracker):
         if state not in sessions or sessions[state].video is None:
@@ -489,6 +519,7 @@ def create_app(runtime: CacheRuntime, *, gpu=None) -> FastAPI:
         )
 
     app = gr.mount_gradio_app(app, api, path="/api/gradio", show_error=True)
+    app.state.gradio_blocks = api
     app.mount(
         "/",
         StaticFiles(directory=Path(__file__).resolve().parents[1] / "dist", html=True),

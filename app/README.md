@@ -17,6 +17,8 @@ PYTHONPATH=app python -m server
 
 Open `http://127.0.0.1:7860/`. Both released profiles load by default; `--model configs/models/flux-all.yaml` loads only one. Run `PYTHONPATH=app python -m server --help` for the other options.
 
+Container logs summarize Cache builds, condition previews and video generation, including reused results and separate compute/encoding timings. `elapsed` measures the server operation, including ZeroGPU waits inside it; it excludes the preceding Gradio queue and browser downloads. `readout` measures Cache readout alone.
+
 ## Hugging Face Space
 
 Create a Gradio Space with ZeroGPU and copy the files in [deploy/huggingface](deploy/huggingface/) to its root. At startup the Space checks out `main` of this repository, builds the frontend and downloads the model assets. To add examples, commit case directories with their input and `example.yaml` to `examples/`, then restart the Space.

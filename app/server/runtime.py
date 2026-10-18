@@ -31,6 +31,7 @@ from alc_video.inference.media import (
 from alc_video.inference.sampling import generate_latents_from_generator
 from alc_video.models.video_model.temporal import wan_vae_latent_frame_count
 from alc_video.runtime.resources import release_resource
+from alc_video.utils.logging import LOG
 from server.conditioning import Shot, move_readouts, read_conditions
 
 Progress = Callable[[str], None]
@@ -277,9 +278,13 @@ class CacheRuntime:
         if self.device.type == "cuda":
             torch.cuda.synchronize(self.device)
         start = perf_counter()
-        yield
-        if self.device.type == "cuda":
-            torch.cuda.synchronize(self.device)
+        try:
+            yield
+            if self.device.type == "cuda":
+                torch.cuda.synchronize(self.device)
+        except Exception:
+            LOG.error("%s failed", name)
+            raise
         timings[name] = perf_counter() - start
 
     @torch.inference_mode()

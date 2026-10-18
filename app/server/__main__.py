@@ -66,10 +66,12 @@ def main() -> None:
 
     from alc_video.inference.config import load_generation_config
     from alc_video.runtime.cli import initialize_cli
+    from server.logging import configure_app_logging
     from server.runtime import CacheRuntime
     from server.service import create_app
 
     initialize_cli()
+    configure_app_logging()
     paths = (
         [args.model]
         if args.model
@@ -108,19 +110,24 @@ def main() -> None:
             }.values():
                 encoder.prepare()
         app = create_app(runtime, gpu=gpu)
+        server = uvicorn.Server(
+            uvicorn.Config(
+                app,
+                host=args.host,
+                port=args.port,
+                root_path=args.root_path,
+                timeout_graceful_shutdown=5,
+                access_log=False,
+            )
+        )
+        # ZeroGPU reads blocks.server.config.port to identify server sockets.
+        app.state.gradio_blocks.server = server
         if args.zerogpu:
             # mount_gradio_app does not invoke Spaces' Blocks.launch startup hook.
             from spaces.zero import startup
 
             startup()
-        uvicorn.run(
-            app,
-            host=args.host,
-            port=args.port,
-            root_path=args.root_path,
-            timeout_graceful_shutdown=5,
-            access_log=False,
-        )
+        server.run()
 
 
 if __name__ == "__main__":
