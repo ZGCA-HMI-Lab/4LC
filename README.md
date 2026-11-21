@@ -14,9 +14,11 @@ Jianhui Zhang<sup>1,2</sup> &nbsp; Zuyao Lin<sup>3,2</sup> &nbsp; Pengxin Xu<sup
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-64748B?style=flat&amp;labelColor=454545" height="22" alt="License: MIT"></a>
 </p>
 
-https://github.com/user-attachments/assets/48da17c0-5f50-49cd-83cc-b251b1f1aad6
 
-<p><strong>4LC caches visual representations of static and dynamic content for reuse across times and viewpoints.</strong></p>
+
+https://github.com/user-attachments/assets/1a03bd59-c5ce-4370-9bef-35c5a3ffcaab
+
+ <p><strong>4LC caches visual representations of static and dynamic content for reuse across times and viewpoints.</strong></p>
 
 [Latent Cache](#latent-cache) · [Installation](#installation) · [Models & Config](#models-and-configuration) · [Inference](#inference) · [Training](#training)
 
